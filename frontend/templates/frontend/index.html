@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+{% endblock %}
+
+
+{% block content %}
+<h3>Existing Visualisations  <span class="pull-right"><a href="{% url edit 'new' %}" id="createButton" type="submit" class="btn btn-primary"><i class="fa fa-plus"></i> Create a new visualisation</a></span></h3>
+<hr>
+
+{% for chart_type, chart_groups in groups.items %}
+<a name="{{ chart_type }}"></a>
+<div class="panel panel-info">
+  <div class="panel-heading" style="cursor:pointer;">
+    <h3 class="panel-title" data-toggle="collapse" data-target="#subsec_{{forloop.counter}}" aria-expanded="false" aria-controls="collapseExample">{{ chart_type }}<button class="pull-right btn btn-xs btn-info" type="button">Show / Hide</button>
+    </h3>
+  </div>
+  <div id="subsec_{{forloop.counter}}" class="list-group collapse">
+  {% for group, group_vis in chart_groups.items %}
+      <a href="#" class="list-group-item disabled">{{ group }}</a> 
+      {% for vis in group_vis %}
+        <a class="list-group-item" href="{% url view vis.pk %}">{{ vis.s_date }} to {{ vis.e_date }} -- {{ vis.name }}{% if vis.cached %}<span class="badge">Cached</span>{% endif %}</a>
+      {% endfor %}
+  {% endfor %}
+  </div>
+</div>
+{% endfor %}
+
+<BR><BR>
+
+{% endblock %}

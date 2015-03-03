@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% load i18n %}
+
+{% block title %}
+{{ site.name }} Registration Complete
+{% endblock %}
+
+{% block description %}
+<h2>Registration Complete</h2>
+{% endblock %}
+
+{% block content %}
+<p>
+    {% trans "Thank you for registering!" %} <br/>
+    {% trans "An email was sent to the address you provided." %} <br/>
+    {% trans "Please follow the instructions in it to activate your account." %}
+</p>
+{% endblock %}

@@ -1,0 +1,47 @@
+      
+      #calendar{
+        width: 800px;
+        margin: 0 auto;
+      }
+      .background {
+        fill: #eee;
+      }
+
+      line {
+        stroke: #fff;
+      }
+
+      text.active {
+        fill: red;
+      }
+
+      .day {
+        /*fill: #fff;*/
+        stroke: #ccc;
+      }
+
+      .month {
+        fill: none;
+        stroke: #fff;
+        stroke-width: 4px;
+      }
+    
+      /* color ranges */
+      .RdYlGn .q11-11{fill:#FF0000}
+      .RdYlGn .q10-11{fill:#E80017}
+      .RdYlGn .q9-11{fill:#D1002E}
+      .RdYlGn .q8-11{fill:#B90046}
+      .RdYlGn .q7-11{fill:#A2005D}
+      .RdYlGn .q6-11{fill:#8B0074}
+      .RdYlGn .q5-11{fill:#74008B}
+      .RdYlGn .q4-11{fill:#5D00A2}
+      .RdYlGn .q3-11{fill:#4600B9}
+      .RdYlGn .q2-11{fill:#2E00D1}
+      .RdYlGn .q1-11{fill:#1700E8}
+
+      /* hover info */
+      #tooltip {
+        background-color: #fff;
+        border: 2px solid #ccc;
+        padding: 10px;
+      }

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+<script src="/media/frontend/js/highchart/highcharts.js"></script>
+<script src="/media/frontend/js/highchart/highcharts-more.js"></script>
+
+{% endblock %}
+
+{% block menuextras %}
+    <li><a href="{% url edit vis.pk %}"><i class="fa fa-pencil"></i> Edit</a></li>
+    <li><a href="{% url clear_cache vis.pk %}"><i class="fa fa-refresh"></i> Refresh</a></li>
+{% endblock %}
+
+{% block content %}
+{% load staticfiles %}
+
+<h3><p class="text-center">{{ vis.name }} ({{ vis.group }})</p></h3>
+<p class="text-center lead">{{ s_date }} to {{ e_date }}</p>
+
+<div id="chart" style="width: 100%; overflow: hidden;">
+
+
+<script>
+    var master = {{ data|safe }};
+    if (master.length==0) bootbox.alert("No data");
+
+    for (var i=0; i<master.length; i++) {
+        
+        var data = master[i];
+
+        $('#chart').append( '<div id="sub_'+i+'" style="width: '+data.vis_settings.width+'px; height: '+data.vis_settings.height+'px; float: left; padding:10px"></div>' );
+
+        // Add warning messages for channels with no data
+        for (var j=0; j<data.messages.length; j++) {  addMessage(data.messages[j], 0); }
+        
+        $('#sub_'+i).highcharts({
+            chart: {
+                type: 'column'
+            },
+            title: {
+                text: data.title,
+                style: {
+                    fontSize: '10px'
+                }
+            },
+            legend: { 
+                enabled: false,
+            },
+            xAxis: data.xAxis,
+            yAxis: data.yAxis,
+            plotOptions: {
+                column: {
+                    pointPadding: 0,
+                    groupPadding: 0,
+                    pointPadding: 0,
+                    borderWidth: 0
+                }
+            },
+            series: data.series
+        });
+    }
+
+
+    
+</script>
+{% endblock %}

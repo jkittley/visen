@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+<script src="/media/frontend/js/highchart/highcharts.js"></script>
+<script src="/media/frontend/js/highchart/exporting.js"></script>
+{% endblock %}
+
+{% block menuextras %}
+    <li><a href="{% url edit vis.pk %}"><i class="fa fa-pencil"></i> Edit</a></li>
+    <li><a href="{% url clear_cache vis.pk %}"><i class="fa fa-refresh"></i> Refresh</a></li>
+{% endblock %}
+
+{% block content %}
+{% load staticfiles %}
+<div id="chart" style="margin: 0 auto"></div>
+<hr>
+<a href="#" data-toggle="collapse" data-target="#subsec_{{forloop.counter}}" aria-expanded="false" aria-controls="collapseExample">Details</a>
+<table id="datatabled" class="table collapse">
+    <thead><tr><th>Time</th></tr></thead>
+    <tbody></tbody>
+</table>
+<script>
+    var data = {{ data|safe }};
+
+    // Add warning messages for channels with no data
+    for (var i=0; i<data.messages.length; i++) {  addMessage(data.messages[i], 0); }
+   
+    data['subtitle'] = {
+        text: '{{ s_date }} to {{ e_date }}'
+    }
+
+    var chart  = $('#chart').highcharts(data);
+    var merged = {}
+    $.each(data.series, function(row, col) {
+        $('#datatabled thead tr').append('<th>'+col.name+'</th>');
+        $.each(col.data, function(k, v) {       
+            if (!merged.hasOwnProperty(v[0])) { merged[v[0]] = []; }
+            merged[+v[0]].push(v[1]);
+        });
+    });
+
+    $.each(merged, function(k, v) {
+        var d = new Date(k*1);
+        var str = '<td>'+d.toGMTString()+'</td>';
+        for (var i=0; i<v.length; i++) str += '<td>'+v[i]+' </td>';
+        $('#datatabled tbody').append('<tr>'+str+'</tr>');
+    });
+     
+ 
+</script>
+{% endblock %}

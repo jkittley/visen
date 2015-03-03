@@ -1,0 +1,9 @@
+Django==1.4.1
+Fabric==1.10.0
+django-registration==0.8
+ecdsa==0.11
+paramiko==1.15.1
+pycrypto==2.6.1
+simplejson==3.6.4
+wsgiref==0.1.2
+xxtea==0.1.2

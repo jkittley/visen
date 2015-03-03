@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+<script src="/media/frontend/js/highchart/highcharts.js"></script>
+<script src="/media/frontend/js/highchart/exporting.js"></script>
+<script src="/media/frontend/js/highchart/highcharts-regression.js"></script>
+{% endblock %}
+
+{% block menuextras %}
+    <li><a href="{% url edit vis.pk %}"><i class="fa fa-pencil"></i> Edit</a></li>
+    <li><a href="{% url clear_cache vis.pk %}"><i class="fa fa-refresh"></i> Refresh</a></li>
+{% endblock %}
+
+{% block content %}
+{% load staticfiles %}
+<div id="chart" style="min-height:600px; margin: 0 auto"></div>
+<script>
+    var data = {{ data|safe }};
+    console.log(data);
+
+
+    // Add warning messages for channels with no data
+    for (var i=0; i<data.messages.length; i++) {  addMessage(data.messages[i], 0); }
+    if (data.series.length==0) bootbox.alert("No data");
+
+    
+    Highcharts.theme = {
+        colors: ['#50B432', '#ED561B', '#FF9933', '#3333FF', '#24CBE5', '#64E572', 
+                 '#FF9655', '#FFF263', '#6AF9C4']  
+    };
+
+    // Apply the theme
+    Highcharts.setOptions(Highcharts.theme);
+
+
+    var chart =  $('#chart').highcharts({
+        chart: {
+            type: 'scatter',
+            zoomType: 'xy'
+        },
+        title: {
+            text: '{{ vis.name }}'
+        },
+        subtitle: {
+            text: '{{ s_date }} to {{ e_date }}'
+        },
+        xAxis: data.xAxis,
+        yAxis: data.yAxis,
+     
+        plotOptions: {
+            scatter: {
+                marker: {
+                    radius: 3,
+                    states: {
+                        hover: {
+                            enabled: true,
+                            lineColor: 'rgb(100,100,100)'
+                        }
+                    }
+                },
+                states: {
+                    hover: {
+                        marker: {
+                            enabled: false,
+                        }
+                    }
+                },
+                tooltip: {
+                    headerFormat: '<b>{series.name}</b><br>',
+                    pointFormat: '{point.name}<br>'+data.xChannel  +' {point.x} ' + data.xUnit + ', '+data.yChannel+' {point.y} ' + data.yUnit
+                }
+            }
+        },
+        series: data.series
+    });
+
+
+
+
+
+
+</script>
+{% endblock %}

@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&signed_in=true"></script>
+
+<style>
+#map-canvas {
+        height: 400px;
+        width: 100%;
+        min-width: 1000px;
+        margin: 0px;
+        padding: 0px
+      }
+</style>
+<script>
+var markers = [];
+var map;
+
+$(document).ready(function() {
+
+    oTable = $('#sensorList').dataTable({ "lengthMenu": [[5, 25, 50, -1], [5, 25, 50, "All"]] });
+    $('.dataTables_filter').addClass("pull-right");
+    $('.dataTables_paginate').addClass("pull-right");
+    $('.dataTables_info').addClass("pull-left");
+
+    bTable = $('#wordList').dataTable({ "lengthMenu": [[15, 25, 50, -1], [15, 25, 50, "All"]] });
+    $('.dataTables_filter').addClass("pull-right");
+    $('.dataTables_paginate').addClass("pull-right");
+    $('.dataTables_info').addClass("pull-left");
+
+    // Map stuff
+    initialize_map();
+    {% for sp in default_data.sensor_profiles %}
+    addmarker('{{ sp.lon }}','{{ sp.lat }}','{{ sp.address }}','{{ sp.longname }}','{{ sp.sensor.pk }}');
+    {% endfor %}
+    center_map();
+});
+
+
+function initialize_map() {
+    var mapOptions = {
+      zoom: 8,
+    };
+    map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+}
+
+function addmarker(lon, lat, address, name, pk) { 
+    var contentString = '<strong>'+name+'</strong><BR>'+address;
+    var infowindow = new google.maps.InfoWindow({
+      content: contentString
+    });
+    var marker = new google.maps.Marker({ 
+      position: new google.maps.LatLng(lat,lon), 
+      map: map, 
+      title: name 
+    });
+    markers.push(marker);
+    google.maps.event.addListener(marker, 'click', function() {
+      infowindow.open(map,marker);
+    });
+}
+
+function center_map() {
+    map.fitBounds(markers.reduce(function(bounds, marker) {
+    return bounds.extend(marker.getPosition());
+    }, new google.maps.LatLngBounds()));
+}
+
+</script>
+{% endblock %}
+
+{% block content %}
+<h3>Sensors (Sites)</h3>
+<HR>
+
+  <div id="map-canvas"></div>
+
+  <BR>
+
+
+      <table id="sensorList" class="table table-striped table-bordered" cellspacing="0" width="100%">
+            <thead>
+                <tr>
+                    <th>Sensor Mac</th>
+                    <th>Name & location</th>
+                    <th>Channels</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sensor_profile in default_data.sensor_profiles %}
+                <tr>
+                    <td>{{ sensor_profile.sensor.mac }}</td>
+                    <td>{{ sensor_profile.longname }}<BR>{{ sensor_profile.postcode }}</td>
+                    <td>
+                      {% for c in sensor_profile.sensor.channels.all %}
+                      {{ c.name }} ({{ c.pk }}) 
+                      {% endfor %}
+                      </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+
+<h3>Unique words in sensor names</h3>
+
+
+<table id="wordList" class="table table-striped table-bordered" cellspacing="0" width="100%">
+            <thead>
+                <tr>
+                    <th>Word</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for word in unique_words %}
+                <tr>
+                    <td>{{ word.name }}</td>
+                    <td>{{ word.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+
+{% endblock %}

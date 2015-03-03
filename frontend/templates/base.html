@@ -1,0 +1,109 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+<meta charset="utf-8">
+<html>
+
+<head>
+    <title>{{site.name}}</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <!-- JQuery -->
+    <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <!-- Date time picker -->
+    <link rel="stylesheet" href="/media/frontend/css/bootstrap-datetimepicker.min.css"/>
+    <script type="text/javascript" src="/media/frontend/js/bootstrap-datetimepicker.min.js"></script>
+    <!-- Bootbox -->
+    <script src="/media/frontend/js/bootbox.min.js"></script>
+    <!-- Datatables -->
+    <script src="/media/frontend/js/jquery.dataTables.min.js"></script>
+    <script src="/media/frontend/js/dataTables.bootstrap.js"></script>
+    
+    <!-- Font awsemone -->
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <script>
+    var messages = [];
+    $( document ).ready(function() { 
+      if (messages.length===0) $('#msgAlert').hide();
+      $('#msgAlert').click(function() { 
+         var msgstr = '<strong>Messages</strong><BR>'
+         for (var i=0; i<messages.length; i++) msgstr += messages[i]+'<BR>';
+         bootbox.alert(msgstr);
+      });
+    });
+    function addMessage(msg, type) {
+      messages.push(msg);
+      $('#msgAlert').show();
+    }
+  
+    </script>
+
+    {% block head %}
+    {% endblock %}
+
+    <style>
+    ul.pagination { 
+      margin-top:0px;
+      padding-top:0px;
+      vertical-align: top;
+    }
+    </style>
+    
+</head>
+<body><a name="top"></a>
+    <!-- Fixed navbar -->
+    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="{% url index %}">{{ site.name }}</a>
+        </div>
+        <div class="navbar-collapse collapse">
+
+            <ul class="nav navbar-nav">
+            <li><a href="{% url index %}"><i class="fa fa-area-chart"></i> Visualisations</a></li>
+            <li><a href="{% url sensor_info %}"><i class="fa fa-map-marker"></i> Sensor Info</a></li>
+            <li><a href="#" id="msgAlert"><i class="fa fa-exclamation-triangle"></i> Messages</a></li>
+            {% block menuextras %}
+            {% endblock %}
+            </ul>
+
+          <ul class="nav navbar-nav navbar-right">
+            {% if user.is_authenticated %}
+              <li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">My Account <span class="caret"></span></a>
+              <ul class="dropdown-menu" role="menu">
+                {% if user.is_superuser %}
+                <li><a href="/admin">Admin Panel</a></li>
+                {% endif %}
+                <li><a href="{% url profile_view %}">My Profile</a></li>
+                <li><a href="{% url help %}">Help</a></li>
+                <li><a href="{% url raw %}">Raw data checker</a></li>
+                <li><a href="{% url auth_logout %}">Sign Out</a></li>
+              </ul>
+            </li>
+            {% else %}
+              <li><a href="{% url auth_login %}">Sign In</a></li>
+            {% endif %}
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </div>
+
+    <div class="container">
+        {% block content %}
+        {% endblock %}
+    </div>
+    
+
+     <div id="loaded_flag"></div>
+</body>
+</html>

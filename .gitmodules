@@ -1,0 +1,10 @@
+[submodule "sd_store"]
+	path = sd_store
+	url = https://jkittley@bitbucket.org/ecostanza/sd_store.git
+	branch = importers
+[submodule "basic_registration"]
+	path = basic_registration
+	url = https://jkittley@bitbucket.org/mjewell/basic_registration.git
+[submodule "basicutils"]
+	path = basicutils
+	url = https://jkittley@bitbucket.org/ecostanza/basicutils.git

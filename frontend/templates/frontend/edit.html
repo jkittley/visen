@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&signed_in=true"></script>
+
+<style>
+.disabled {
+   color: lightgrey;
+}
+.list-group-item { 
+    margin: 0px;
+    padding: 5px
+}
+.list-group { 
+    margin-bottom: 0px;
+    padding-bottom: 0px
+}
+</style>
+
+<script>
+var checkedInputs    = [];
+var modesOfInputs    = {};
+var oTable;
+var map;
+var summodes = ['Sum','Mean','Min','Max','Median','Upper Quartile','Lower Quartile','IQR Spread','RoC Mean']
+
+$(document).ready(function() {
+
+    // Date time pickers
+    $('#start').datetimepicker({
+            format: 'yyyy-mm-dd', 
+            startView: 3, 
+            minView: 2,
+            autoclose: true
+    });
+
+    $('#end').datetimepicker({
+            format: 'yyyy-mm-dd', 
+            startView: 3, 
+            minView: 2,
+            autoclose: true
+    });
+
+    // Set the select chart on load
+    $('#charttype').val({{ vis.chart.pk }});
+
+    $('#update_basics').click(function() { 
+        bootbox.confirm("<strong>Warning!</strong><br>Altering the chart type will reset the settings and remove any inputs which eceed the new chart types capacity.", function(result) { 
+          if (result) { $('#basicsForm').submit(); }
+        });
+    });
+});
+
+function deleteInput(vispk, visinpk) { 
+  bootbox.confirm("<strong>Are you sure?</strong>", function(result) { 
+      if (result) window.location.href = "/delete_input/"+vispk+'/'+visinpk+'/';
+  });
+  return false;
+}
+
+
+</script>
+{% endblock %}
+
+{% block content %}
+
+
+<h3>Edit visualisation: <a href="{% url view vis.pk %}">{{ vis.name }}</a></h3>
+
+<form name="basicsForm" id="basicsForm" action="{% url edit vis.pk %}" method="POST">
+{% csrf_token %}
+<input id="section"  name="section"  type="hidden" value="1" />
+<div class="panel panel-default">
+  <div class="panel-heading">Basics<a href="http://localhost:8000/admin/frontend/visualisation/{{ vis.pk }}" class="pull-right">Advanced</a>
+</div>
+  <div class="panel-body">
+    
+    <div class="form-group">
+      <label for="name">Title</label>
+      <input type="name" class="form-control" name="name" id="name" value="{{ vis.name }}">
+    </div>
+
+   <div class="form-group">
+      <label for="name">Group</label>
+      <input type="name" class="form-control" name="group" id="group" value="{{ vis.group }}">
+    </div>
+
+    <div class="form-group">
+    <label for="charttype">Chart Type</label>
+    <select name="charttype" id="charttype" class="form-control">
+      {% for ct in charts %}
+      <option value="{{ ct.pk }}">{{ ct.name }}</option>
+      {% endfor %}
+    </select>
+    </div>
+             
+  </div>
+  <div class="panel-footer"><button type="button" id="update_basics" class="btn btn-primary"><i class="fa fa-floppy-o"></i> Update</button></div>
+</div>
+</form>
+
+{% if inputs|length > vis.chart.max_inputs %}
+<div class="alert alert-danger" role="alert">
+  Warning - You have too many inputs for this chart type. The maximum is {{ vis.chart.max_inputs }}.
+</div>
+{% endif %}
+
+{% if inputs|length < vis.chart.min_inputs %}
+<div class="alert alert-danger" role="alert">
+  Warning - You have too few inputs for this chart type. The minimum is {{ vis.chart.min_inputs }}.
+</div>
+{% endif %}
+
+<div class="panel panel-default">
+  <div class="panel-heading">Inputs</div>
+    {% if inputs %}
+    <table class="table">
+      <thead>
+        <th>Name</th>
+        <th>Sensor</th>
+        <th>Channel</th>
+        <th>Period start</th>
+        <th>Period end</th>
+        <th>Sum Mode</th>
+        <th></th>
+      </thead>
+    {% for visin in inputs %}
+      <tr>
+       <td>{{ visin.name|default:"Use Default" }}</td>
+       <td>{{ visin.sensor.name }}</td>
+       <td>{{ visin.channel.name }}</td>
+       <td>{{ visin.period_start }}</td>
+       <td>{{ visin.period_end }}</td>
+       <td><script>document.write(summodes[{{ visin.summode }}])</script></td>
+       <td>
+        <a href="{% url edit_input vis.pk visin.pk %}" class="btn btn-primary"><i class="fa fa-pencil"></i></a>
+        <a href="#" onClick="deleteInput({{ vis.pk }},{{ visin.pk }})" class="btn btn-danger"><i class="fa fa-trash-o"></i></a>
+       </td>
+      </tr>
+    {% endfor %}
+    <table>
+    {% else %}
+    <div class="panel-body">
+    No Inputs
+    </div>
+    {% endif %}
+  </table>
+  <div class="panel-footer">
+    {% if vis.chart.max_inputs > inputs|length %}
+    <a href="{% url edit_input vis.pk 'new' %}" class="btn btn-primary"><i class="fa fa-plus-square"></i> Add</a>
+    {% else %}
+    <a href="#" class="btn btn-primary" disabled>Add: Max reached</a>
+    {% endif %}
+  </div>
+</div>
+
+
+
+<form name="createForm" id="createForm" action="{% url edit vis.pk %}" method="POST">
+{% csrf_token %}
+<input id="section2" name="section" type="hidden" value="2" />
+<div class="panel panel-default">
+  <div class="panel-heading">Settings</div>
+  <div class="panel-body">
+     {% for key, value in settings.items %}
+     <div class="form-group">
+      <label for="setting_{{ key }}">{{ key|capfirst }}</label>
+      <input type="name" class="form-control" name="setting_{{ key }}" id="setting_{{ key }}" value="{{ value }}">
+    </div>
+     {% endfor %}
+  </div>
+  <div class="panel-footer"><button class="btn btn-primary"><i class="fa fa-floppy-o"></i> Update</button></div>
+</div>
+</form>
+
+
+{% endblock %}

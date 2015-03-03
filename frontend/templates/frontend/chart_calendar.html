@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+<script type="text/javascript" src="/media/frontend/js/d3.min.js"></script>
+<link rel="stylesheet" href="/media/frontend/css/cal.css"/>
+<style>
+.cal_main { 
+    margin-left:10px;
+    width: 100vw;
+    position: absolute;
+}
+.cal_year_title {
+    margin-left:30px;
+}
+.cal_year_group {
+    position: relative;
+    height:2000px;
+}
+.cal_frame { 
+     width: 200px;
+     position: absolute;
+}
+#colorlegend { 
+     margin-top: 10px;
+}
+.progress { 
+    margin-bottom:0px;
+    padding-bottom: 0px;
+}
+.day-title { 
+    font-size: 10px;
+    padding-left:5px;
+}
+</style>
+{% endblock %}
+
+
+{% block menuextras %}
+    <li><a href="{% url edit vis.pk %}"><i class="fa fa-pencil"></i> Edit</a></li>
+    <li><a href="{% url clear_cache vis.pk %}"><i class="fa fa-refresh"></i> Refresh</a></li>
+    <li><div id="colorlegend"></div></li>
+{% endblock %}
+
+{% block content %}
+{% load staticfiles %}
+<h3><p class="text-center">{{ vis.name }} ({{ vis.group }})</p></h3>
+<p class="text-center lead">{{ s_date }} to {{ e_date }}</p>
+{% if data != 'null' %}
+</div>
+<div id="calendar" class="cal_main">
+<script>
+    
+    var weekday = new Array(7);
+        weekday[0]=  "Sunday";
+        weekday[1] = "Monday";
+        weekday[2] = "Tuesday";
+        weekday[3] = "Wednesday";
+        weekday[4] = "Thursday";
+        weekday[5] = "Friday";
+        weekday[6] = "Saturday";
+
+    var width               = 160,
+        height              = 2000,
+        cellSize            = 20;
+    var no_months_in_a_row  = 1;
+    var shift_up            = cellSize * 3;
+    var day                 = d3.time.format("%w"), // day of the week
+        day_of_month        = d3.time.format("%e")  // day of the month
+        day_of_year         = d3.time.format("%j")  // day of the year
+        week                = d3.time.format("%U"), // week number of the year
+        month               = d3.time.format("%m"), // month number
+        year                = d3.time.format("%Y"), 
+        percent             = d3.format(".1%"),
+        format              = d3.time.format("%Y-%m-%d");
+
+    //  Tooltip Object
+    var tooltip = d3.select("body")
+        .append("div").attr("id", "tooltip")
+        .style("position", "absolute")
+        .style("z-index", "10")
+        .style("visibility", "hidden")
+        .text("a simple tooltip");
+
+    var rdata = {{ data|safe }};
+    var range = (rdata.highest - rdata.lowest) / 100;
+    var base  = rdata.lowest
+
+    // Add warning messages for channels with no data
+    for (var i=0; i<rdata.messages.length; i++) {  addMessage(rdata.messages[i], 0); }
+    if (rdata.sets.length==0) bootbox.alert("No data");
+
+
+    // Reading value to colour converter
+    var global_color = d3.scale.linear()
+        .domain([rdata.lowest, ((rdata.highest-rdata.lowest)/4), ((rdata.highest-rdata.lowest)/2), ((rdata.highest-rdata.lowest)*0.75), rdata.highest])
+        .range(["lightblue","green","yellow","orange","red"]);
+
+    // If only one channel being displayed then widen frame and allow months to draw accross x
+    if (rdata.sets.length===1) { 
+        no_months_in_a_row = 6; 
+        width=1000; 
+        height=500;
+    } 
+
+    // For each year to be displated
+    for (var myyear=rdata.earliest_year; myyear <= rdata.most_recent_year; myyear++) {
+        var xpos = 20;
+        $( '#calendar' ).append('<h3 class="cal_year_title">'+myyear+'</h3>');
+        $( '#calendar' ).append('<div id="year_group_'+myyear+'" class="cal_year_group"></div>');       
+        for (var i=0; i<rdata.sets.length; i++) { 
+            build_cal('#year_group_'+myyear, rdata.sets[i], myyear, xpos, 'c_'+myyear+'_'+i);
+            xpos += width;
+        }
+    }
+    
+    // If only one channel being displayed then widen frame and allow months to draw accross x
+    if (rdata.sets.length===1) { 
+        $('.cal_year_group').height(400);
+    } 
+
+    console.log(Boolean(rdata.vis_settings.scale_global))
+    if (Boolean(rdata.vis_settings.scale_global)) {
+        if (rdata.sets.length > 0) buildColorScale();
+    }
+
+    function build_cal(container, ldata, display_year, xpos, ref) {
+        
+        // Reading value to colour converter
+        var local_color = d3.scale.linear()
+        .domain([ldata.local_lowest, ((ldata.local_highest-ldata.local_lowest)/4), ((ldata.local_highest-ldata.local_lowest)/2), ((ldata.local_highest-ldata.local_lowest)*0.75), ldata.local_highest])
+        .range(["lightblue","green","yellow","orange","red"]);
+
+        // Read setting for local or global colour scale
+        if (Boolean(rdata.vis_settings.scale_global)) {
+            color = global_color;
+        } else { 
+            color = local_color;
+        }
+
+        $( container ).append('<div id="cal_'+ref+'" class="cal_frame"></div>');
+
+        $('#cal_'+ref).css('left', xpos);
+
+            // Build SVG for each year to be displayes
+            var svg = d3.select('#cal_'+ref)
+                .selectAll("svg")
+                .data(d3.range(display_year, display_year+1))   // Range of years to show
+                .enter().append("svg")                          // Add an svg for each year
+                .attr("width", width)
+                .attr("height", height)
+                .attr("class", "RdYlGn")
+                .append("g")                                   
+
+            // Build days into a month looking form
+            var rect = svg.selectAll(".day")
+                .data(function(d) { return d3.time.days(new Date(d, 0, 1), new Date(d + 1, 0, 1)); })
+                .enter().append("rect")
+                .attr("class", "day")
+                .attr("fill", function(d) { 
+                    if (ldata.daytotals[format(d)]) return color(ldata.daytotals[format(d)]) 
+                    else                            return "#eeeeee"; })
+                .attr("width", cellSize)
+                .attr("height", cellSize)
+                .attr("x", function(d) {
+                    var month_padding = 1.2 * cellSize*7 * ((month(d)-1) % (no_months_in_a_row));
+                    return day(d) * cellSize + month_padding; })
+                .attr("y", function(d) { 
+                    var week_diff = week(d) - week(new Date(year(d), month(d)-1, 1) );
+                    var row_level = Math.ceil(month(d) / (no_months_in_a_row));
+                    return (week_diff*cellSize) + row_level*cellSize*8 - cellSize/2 - shift_up; })
+                .datum(format);
+
+            // Add titles to months
+            var month_titles = svg.selectAll(".month-title")  // Jan, Feb, Mar and the whatnot
+                .data(function(d) {  return d3.time.months(new Date(d, 0, 1), new Date(d + 1, 0, 1)); })
+                .enter().append("text")
+                .text(monthTitle)
+                .attr("x", function(d, i) {
+                    var month_padding = 1.2 * cellSize*7* ((month(d)-1) % (no_months_in_a_row));
+                    return month_padding; })
+                .attr("y", function(d, i) {
+                    var week_diff = week(d) - week(new Date(year(d), month(d)-1, 1) );
+                    var row_level = Math.ceil(month(d) / (no_months_in_a_row));
+                    return (week_diff*cellSize) + row_level*cellSize*8 - cellSize - shift_up - 10; })
+                .attr("class", "month-title")
+                .attr("d", monthTitle);
+
+            // Add titles to days
+            var day_titles = svg.selectAll(".day-title")  
+                .data(function(d) {  return d3.time.months(new Date(d, 0, 1), new Date(d + 1, 0, 1)); })
+                .enter().append("text")
+                .text('-S -- M -- T -- W -- T -- F -- S-')
+                .attr("x", function(d, i) {
+                    var month_padding = 1.2 * cellSize*7* ((month(d)-1) % (no_months_in_a_row));
+                    return month_padding; })
+                .attr("y", function(d, i) {
+                    var week_diff = week(d) - week(new Date(year(d), month(d)-1, 1) );
+                    var row_level = Math.ceil(month(d) / (no_months_in_a_row));
+                    return (week_diff*cellSize) + row_level*cellSize*8 - cellSize - shift_up + 5; })
+                .attr("class", "day-title")
+                .attr("d", monthTitle);
+
+            var year_titles = svg.selectAll(".year-title")  
+                  .data(function(d) { 
+                    return d3.time.years(new Date(d, 0, 1), new Date(d + 1, 0, 1)); })
+                .enter().append("text")
+                  .text(trunc(ldata.showname,25))
+                  .style("font-size", "12px")
+                  .attr("x", 0)
+                  .attr("y", function(d, i) { return cellSize*5.5 - shift_up; })
+                  .attr("class", "year-title")
+                  .attr("d", yearTitle);
+
+            //  Tooltip
+            rect.on("mouseover", mouseover);
+            rect.on("mouseout", mouseout);
+            function mouseover(d) {
+                    tooltip.style("visibility", "visible");
+                    tooltip.transition()        
+                           .duration(100)      
+                           .style("opacity", 1);      
+                    tooltip.html(tooltip_text(d,ldata))  
+                           .style("left", (d3.event.pageX)+30 + "px")     
+                           .style("top", (d3.event.pageY) + "px"); 
+            }
+                
+            function mouseout (d) {
+                    tooltip.transition()        
+                    .style("opacity", 0); 
+            }
+        }
+    
+
+    function dayTitle (t0) {    return t0.toString().split(" ")[2];  }
+    function monthTitle (t0) {  return t0.toLocaleString("en-us", { month: "long" }); }
+    function yearTitle (t0) {   return t0.toString().split(" ")[3];  }
+
+    function tooltip_text(d, ldata) {
+
+        var per  = Math.floor( ((ldata.daytotals[d]-base) / range) );
+        var date = new Date(d);
+
+        var html = ldata.showname+'<BR>'; 
+        html += d + " "+weekday[date.getDay()];
+        html += '<div class="progress">';
+        html += ' <div class="progress-bar" role="progressbar" aria-valuenow="'+per+'" aria-valuemin="0" aria-valuemax="100" style="width: '+per+'%;">';
+        html += '  <span class="sr-only">'+per+'% Complete</span>';
+        html += ' </div>';
+        html += '</div>';
+        html += ldata.daytotals[d] + " "+ldata.showunit+" <BR>";
+        html += '('+per+'% of highest visible ('+rdata.highest+' '+ldata.showunit+')';
+        return html
+    }
+
+    function trunc(str, len) {   
+         if (str.length<len) return str;
+         return str.substr(0,len-1)+'...';
+      };
+
+    function buildColorScale() {
+        var w = 300,
+            h = 30;
+
+        var svg = d3.select("#colorlegend").append("svg:svg")
+            .attr("width", w)
+            .attr("height", h);
+
+        var gradient = svg.append("svg:defs")
+          .append("svg:linearGradient")
+            .attr("id", "gradient")
+            .attr("x1", "0%")
+            .attr("y1", "0%")
+            .attr("x2", "100%")
+            .attr("y2", "0%")
+            .attr("spreadMethod", "pad");
+
+        
+        for (var i=0; i<=100; i=i+10 ) {
+            gradient.append("svg:stop")
+            .attr("offset", i+"%")
+            .attr("stop-color", global_color(base+(range*i)))
+            .attr("stop-opacity", 1);
+        }
+        
+        svg.append("svg:rect")
+            .attr("width", w)
+            .attr("height", h)
+            .style("fill", "url(#gradient)");
+
+        svg.append("text")
+                  .text(rdata.lowest+' '+rdata.global_unit)
+                  .attr("x", 20)
+                  .attr("y", 20);
+
+        svg.append("text")
+                  .text(rdata.highest+' '+rdata.global_unit)
+                  .attr("x", w-90)
+                  .attr("y", 20);
+    }
+
+  </script>
+
+{% else %}
+Unable to process at this time
+{% endif %}
+{% endblock %}

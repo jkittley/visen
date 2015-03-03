@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+<script src="/media/frontend/js/d3.min.js"></script>
+<link rel="stylesheet" href="/media/frontend/css/radar-chart.css">
+<script src="/media/frontend/js/radar-chart.js"></script>
+<script src="/media/frontend/js/highchart/highcharts.js"></script>
+<style>
+.radar-chart .area {
+  fill-opacity: 0.5;
+  fill: blue;
+}
+.radar-chart.focus .area {
+  fill-opacity: 0.3;
+  fill: blue;
+}
+.radar-chart.focus .area.focused {
+  fill-opacity: 0.9;
+}
+.level-group .level { 
+    stroke: white;
+}
+</style>
+{% endblock %}
+
+
+{% block menuextras %}
+    <li><a href="{% url edit vis.pk %}"><i class="fa fa-pencil"></i> Edit</a></li>
+    <li><a href="{% url clear_cache vis.pk %}"><i class="fa fa-refresh"></i> Refresh</a></li>
+{% endblock %}
+
+
+{% block content %}
+{% load staticfiles %}
+<h3><p class="text-center">{{ vis.name }} ({{ vis.group }})</p></h3>
+<p class="text-center lead">{{ s_date }} to {{ e_date }}</p>
+
+<div id="chart_star"></div>
+<BR><HR><BR>
+<div id="chart_line" style="min-height: 600px; margin: 0 auto"></div>
+
+
+<script>
+var data = {{ data|safe }}
+
+// Add warning messages for channels with no data
+if (data) { 
+  for (var i=0; i<data.messages.length; i++) {  addMessage(data.messages[i], 0); }
+} else {
+   addMessage('Data Null', 0);
+}
+
+var star_width  = data.vis_settings.width;
+var star_height = data.vis_settings.height;
+var padding = 50;
+var radians_settings = Math.PI;
+var rotation = 0;
+if (data.vis_settings.full_circle) {
+  radians_settings = radians_settings * 2;
+} else { 
+  star_height = star_height / 2;
+  rotation = 90;
+}
+
+var num_of_stars = data.sets.length;
+var num_of_stars_in_a_row = Math.floor( $( window ).width() / (star_width + padding));
+
+RadarChart.defaultConfig.color = function() {};
+RadarChart.defaultConfig.radius = 3;
+RadarChart.defaultConfig.w = star_width;
+RadarChart.defaultConfig.h = star_width;
+
+var chart  = RadarChart.chart();
+var chart_config = chart.config({
+  axisLine: true,
+  axisText: true,
+  circles: false,
+  radians: radians_settings,
+});
+
+var mx = function(i) { return padding + ((i % num_of_stars_in_a_row) * (star_width + padding)); }
+var my = function(i) { return padding + (Math.floor(i / num_of_stars_in_a_row) * (star_height + padding)); }
+
+var svg = d3.select('#chart_star').append('svg')
+  .attr('width', num_of_stars_in_a_row * (star_width + padding))
+  .attr('height', Math.ceil(num_of_stars / num_of_stars_in_a_row) * (star_height + padding));
+
+// draw many radars
+svg.selectAll('g')
+            .data(data.sets)
+            .enter()
+            .append('g')
+            .attr('class','boxy')
+            .attr('transform', function(d, i) { 
+              newx = mx(i);
+              newy = my(i);
+              return 'translate('+newx+','+newy+') rotate('+rotation+' '+(star_width/2)+' '+(star_width/2)+')'; 
+            })
+            .call(chart);
+
+
+svg.selectAll('titles')
+  .data(data.sets)
+  .enter()
+  .append("text")
+  .text(function(d, i) { console.log(d); return d[0].tooltip; })
+  .attr('transform', function(d, i) { 
+              newx = mx(i);
+              newy = my(i)-10;
+              return 'translate('+newx+','+newy+')'; 
+            });
+
+// -------------------------------------------------------------------------------------------
+
+var lc_config = {
+        title: {
+            text: '',
+            x: -20 //center
+        },
+        xAxis: {
+            allowDecimals: false,
+            categories: data.linecats,
+            title: {
+                text: 'Time'
+            },
+        },
+        yAxis: {
+            title: {
+                text: 'Normalised Totals'
+            },
+            floor: 0,
+            ceiling: 1,
+            plotLines: [{
+                value: 0,
+                width: 1,
+                color: '#808080'
+            }]
+        },
+        tooltip: {
+            valueSuffix: ''
+        },
+        
+        series: data.line
+    };
+
+$('#chart_line').highcharts(lc_config);
+
+</script>
+
+{% endblock %}

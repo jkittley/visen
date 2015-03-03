@@ -1,0 +1,10 @@
+RowID,Distillery,Body,Sweetness,Smoky,Medicinal,Tobacco,Honey,Spicy,Winey,Nutty,Malty,Fruity,Floral,Postcode, Latitude, Longitude
+01,Aberfeldy,2,2,2,0,0,2,1,2,2,2,2,2,   PH15 2EB, 286580,749680
+02,Aberlour,3,3,1,0,0,4,3,2,2,3,3,2,    AB38 9PJ, 326340,842570
+03,AnCnoc,1,3,2,0,0,2,0,0,2,2,3,2,  AB5 5LI, 352960,839320
+04,Ardbeg,4,1,4,4,0,0,2,0,1,2,1,0,  PA42 7EB, 141560,646220
+05,Ardmore,2,2,2,0,0,1,1,1,2,3,1,1,     AB54 4NH, 355350,829140
+06,ArranIsleOf,2,3,1,1,0,1,1,1,0,1,1,2, KA27 8HJ, 194050,649950
+07,Auchentoshan,0,2,0,0,0,1,1,0,2,2,3,3, G81 4SJ, 247670,672610
+08,Auchroisk,2,3,1,0,0,2,1,2,2,2,2,1,   AB55 3XS, 340754,848623 
+09,Aultmore,2,2,1,0,0,1,0,0,2,2,2,2,    AB55 3QY, 340754,848623

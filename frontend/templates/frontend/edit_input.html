@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&signed_in=true"></script>
+
+<style>
+.disabled {
+   color: lightgrey;
+}
+.list-group-item { 
+    margin: 0px;
+    padding: 5px
+}
+.list-group { 
+    margin-bottom: 0px;
+    padding-bottom: 0px
+}
+</style>
+
+<script>
+var checkedInputs    = [];
+var modesOfInputs    = {};
+var oTable;
+var map;
+
+$(document).ready(function() {
+
+    // Date time pickers
+    $('#start').datetimepicker({
+            format: 'yyyy-mm-dd hh:ii:ss', 
+            startView: 3, 
+            minView: 1,
+            autoclose: true
+    });
+
+    $('#end').datetimepicker({
+            format: 'yyyy-mm-dd hh:ii:ss', 
+            startView: 3, 
+            minView: 1,
+            autoclose: true
+    });
+
+    // Set the select chart on load
+    $('#charttype').val({{ vis.chart.pk }});
+    $('#sensor').val({{ visin.sensor.pk }});
+    $('#summode').val({{ visin.summode }});
+    $('#preprocess').val({{ visin.preprocess }});
+    
+   
+    get_channels();
+    $('#sensor').on('change', function() { get_channels(); });
+    interval = {{ visin.interval }};
+    if (interval<0) $('#interval').val(interval); else $('#interval').val(0); 
+    $('#interval').on('change', function() { $('#cust_interval').val(''); });
+});
+
+function get_channels(){ 
+   sensorpk = $('#sensor').val();
+   $('#channel')
+    .find('option')
+    .remove();
+   $.getJSON( "/get_channels/"+sensorpk, function( data ) { 
+     $.each( data, function( key, channel ) {
+        $('#channel')
+         .append($("<option></option>")
+         .attr("value",channel.pk)
+         .text(channel.name)); 
+     });
+     $('#channel').val({{ visin.channel.pk }});
+   });
+}
+
+</script>
+{% endblock %}
+
+{% block content %}
+
+<h3>Edit Input: {{ visin.name|default:"Default Name" }} for {{ vis.name }}
+<a href="http://localhost:8000/admin/frontend/visualisation/{{ vis.pk }}" class="pull-right lead">Advanced</a>
+</h3>
+
+<form name="createForm" id="createForm" action="{% url edit_input vis.pk visin.pk %}" method="POST">
+{% csrf_token %}
+<div class="panel panel-default">
+
+  <div class="panel-body">
+    <div class="row"> 
+      <div class="col-md-8">
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input type="name" class="form-control" name="name" id="name" value="{{ visin.name }}">
+        </div>
+      </div>
+    
+      <div class="col-md-4">
+        <div class="form-group">
+          <label for="preprocess">Pre-Process</label>
+          <select name="preprocess" id="preprocess" class="form-control">
+              <option value="0">Normal - Readings as recorded</option>
+              <option value="1">Rate of Change</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">   
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="charttype">Sensor</label>
+          <select name="sensor" id="sensor" class="form-control">
+            {% for sensor in allsensors %}
+            <option value="{{ sensor.pk }}">{{ sensor.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="charttype">Channel</label>
+          <select name="channel" id="channel" class="form-control">
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">    
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="start">Start date</label>
+          <input type="text" class="form-control" name="start" id="start" value="{{ visin.period_start|date:"Y-m-d H:i:s" }}">
+        </div>
+      </div>
+      <div class="col-md-6">
+          <div class="form-group">
+            <label for="end">End date</label>
+            <input type="text" class="form-control" name="end" id="end"  value="{{ visin.period_end|date:"Y-m-d H:i:s" }}">
+          </div>
+      </div>
+    </div>
+
+    <div class="row">   
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="charttype">Interval</label>
+          <select name="interval" id="interval" class="form-control">
+            <option value="-1">Daily</option>
+            <option value="-2">Weekly</option>
+            <option value="-3">Monthly</option>
+            <option value="-4">Seasnoally</option>
+            <option value="-5">Annualy</option>
+            <option value="-6">Weekdays / Weekends</option>
+            <option value="0">Custom</option>
+          </select>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="charttype">Custom interval (in seconds)</label>
+            <input type="text" class="form-control" name="cust_interval" id="cust_interval"  value="{% if visin.interval > 0 %}{{ visin.interval }}{% endif %}">
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="charttype">Sum Mode</label>
+          <select name="summode" id="summode" class="form-control">
+            <option value="0">Total Sum</option>
+            <option value="1">Mean</option>
+            <option value="2">Min</option>
+            <option value="3">Max</option>
+            <option value="4">Median</option>
+            <option value="5">Upper Quartile</option>
+            <option value="6">Lower Quartile</option>
+            <option value="7">Inter Quartile Range Spread</option>
+            <option value="8">Rate Of Change - Mean</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+
+  </div>
+    <div class="panel-footer">
+      <a href="{% url edit vis.pk %}" class="btn btn-default">Cancel</a>
+      <button class="btn btn-primary"><i class="fa fa-floppy-o"></i> Save</button>
+      <a href="#" class="btn btn-danger pull-right"><i class="fa fa-trash-o"></i> Delete</a>
+  </div>
+</div>
+</form>
+
+
+
+
+
+
+{% endblock %}

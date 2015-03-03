@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+<script>
+var oTable;
+var json_data = {{ data|safe }}
+$(document).ready(function() {
+    // Create datatable
+    oTable =  $('#outputTable').dataTable( {
+        "data": json_data.dataSet,
+        "columns": json_data.columns,
+        iDisplayLength: -1,
+        "sDom": 't'
+    } );   
+});
+</script>
+{% endblock %}
+
+
+{% block menuextras %}
+    <li><a href="{% url edit vis.pk %}"><i class="fa fa-pencil"></i> Edit</a></li>
+    <li><a href="{% url clear_cache vis.pk %}"><i class="fa fa-refresh"></i> Refresh</a></li>
+{% endblock %}
+
+{% block content %}
+{% load staticfiles %}
+<h3>{{ vis.name }}</h3>
+<hr>
+<table id="outputTable" class="table table-striped table-bordered" cellspacing="0" width="100%"></table>
+{% endblock %}

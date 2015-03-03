@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% load i18n %}
+
+{% block styles %}
+{% endblock %}
+
+{% block scripts %}
+{% endblock %}
+
+
+{% block content %}
+
+<div class="registration_container">
+
+{% if form.errors %}
+<div class="alert alert-error">Please correct the errors below.
+{{ form.non_field_errors }}</div>
+{% endif %}
+
+<form method="post" action="." data-ajax="false">
+    {% csrf_token %}
+
+	<label>{{ form.username.label_tag }}</label>
+		{{ form.username }}
+ 	{%if form.username.errors.as_text%}
+		<div class="alert alert-error">{{ form.username.errors.as_text }}</div>
+	{%endif%}
+
+    <label>{{ form.password1.label_tag }}</label>
+    	{{ form.password1 }}
+    {%if form.password1.errors.as_text%}
+		<div class="alert alert-error">{{ form.password1.errors.as_text }}</div>
+    {%endif%}
+
+    <label>{{ form.password2.label_tag }}</label>
+       {{ form.password2 }}
+
+	<label>{{ form.email.label_tag }}</label>
+		{{ form.email }}
+
+	<p>
+		<input type="submit" value="{% trans 'Submit' %}" />
+	</p>
+</form>
+</div>
+{% endblock %}

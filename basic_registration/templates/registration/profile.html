@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }} {% trans "Profile" %}
+{% endblock %}
+
+{% block description %}
+<h2>{% trans "Your Profile" %}</h2>
+{% endblock %}
+
+{% block content %}
+
+<p>Hello {{ user }},</p>
+
+<p><a href="/accounts/password/change/">Change your password</a></p>
+
+<p><a href="/accounts/logout/">Logout</a></p>
+
+{% endblock %}

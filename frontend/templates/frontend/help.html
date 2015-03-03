@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+{% endblock %}
+
+
+{% block menuextras %}
+{% endblock %}
+
+
+{% block content %}
+{% load staticfiles %}
+<h3>Help Docs</h3>
+
+<div class="panel panel-default">
+<div class="panel-heading">Options</div>
+<div class="list-group">
+  <a href="#model" class="list-group-item">Model Notes</a>
+  <a href="#cache" class="list-group-item">Caching</a>
+</div>
+</div>
+
+
+<a id="model"></a>
+<div class="panel panel-default">
+  <div class="panel-body">
+    <div class="lead">Models</div>
+
+    <p>
+    <strong>Sensor Profile</strong><br>
+    This model compliments the information held within the SD Store sensor model. Each sensor profile contains:
+    <ul>
+      <li>longname - A longer version of the SD Store Sensor name</li>
+      <li>sensor - The sensor to which it is assosiated</li>
+      <li>address - The address of the sensors location</li>
+      <li>postcode - The postcode of the sensors location</li>
+      <li>lon - The longditude of the sensors location </li>
+      <li>lat - The latitude of the sensors location</li>
+    </ul>
+    </p>
+    <hr>
+    <p>
+    <strong>Chart</strong><br>
+    Model representing a type of chart e.g. time series, star etc. It also provides some contstraints which are implemented in the visualisation creator / editor.
+    <ul>
+      <li>name - The publically visible name</li>
+      <li>ref - An alphanumeric string used to refrence the chart type. Also used as a suffix when loading the template e.g. a ref of 'box' is used to load the template 'chart_box.html' when displaying a visualisation.</li>
+      <li>min_inputs - Lowest number of VisInputs required for the chart to operate</li>
+      <li>max_inputs - Maximum number of VisInputs that this chart can process</li>
+    </ul>
+    </p>
+    <hr>
+    <p>
+    <strong>Visualisation</strong><br>
+    A model that represents a user designed visualisation of data. A visualisation pulls together a set of VisInputs and a Chart to produce a visualisation of some data.
+    <ul>
+      <li>name - The public name of the visualisation and the chart / plots title</li>
+      <li>chart - A refrence to the chart used in the visualisation</li>
+      <li>cache - A store of previously genorated data. If cleared the data is reprocessed the next time the visualisation is loaded</li>
+      <li>settings - Settings to customise the chart when displayed</li>
+      <li>processing - Unimplemented, but planned for future preprocessing of data</li>
+      <li>group - Groups are used to cluster visualistions when displayed as a list</li>
+    </ul>
+
+    <ul>
+      <li>get_all_channels() - Returns a list of unique channels from the VisInputs assosiated with this visualisation.</li>
+      <li>get_all_inputs() - Returns a QuerySet of all VisInputs assosiated with this visualisation.</li>
+      <li>get_input_tme_span() - Returns a list two elements in length. The first is the earliest datetime object discovered in all VisInputs and the second the latest datetime object.</li>
+      <li>get_settings() - Returns the settings as a Dictionary</li>
+    </ul>
+    </p>
+
+    <hr>
+    <strong>VisInput</strong><br>
+    Represents a sensor and a channel over a period of time, to be used as an input to a visualisation.
+    <ul>
+      <li>vis - The visualisation to which this input is assosiated</li>
+      <li>name - A name used by the chart (If left blank the chart will use the Sensor and Channel names to construct a name</li>
+      <li>sensor - An SD Store Sensor</li>
+      <li>channel- An SD Store Channel</li>
+      <li>period - NOT IMPLEMENTED. A Boolean value to indicate if this is indeed over a period or all readings</li>
+      <li>period_start - A datetime for the start of the input</li>
+      <li>period_end - A datetime for the end of the input</li>
+      <li>interval - The length of the intervals which the time period will be devided into
+        <ul>
+          <li>>0 Number of seconds e.g. 3600 is 1 hour</li>
+          <li>-1 Daily</li>
+          <li>-2 Weekly</li>
+          <li>-3 Monthly</li>
+          <li>-4 Seasonally</li>
+          <li>-5 Annuallly</li>
+          <li>-6 Weekdays</li>
+          <li>-7 Weekends</li>
+        </ul>
+      </li>
+      <li>summode - If the interval of the VisInput is different to the reading frequency of the Sensor, this variable determines the method by which the value is calculated.
+      <ul>
+          <li>0 Total sum of all readings</li>
+          <li>1 Mean</li>
+          <li>2 Minimum</li>
+          <li>3 Maximum</li>
+          <li>4 Median</li>
+          <li>5 Upper Quartile</li>
+          <li>4 Lower Quartile</li>
+        </ul>
+      </li>
+    </ul>
+    </p>
+
+  </div>
+</div>
+
+<a id="cache"></a>
+<div class="panel panel-default">
+  <div class="panel-body">
+    <div class="lead">Caching</div>
+    As data can take some time to genorate, caching is implemented via a field within the Visualisation Model. Each chart has a refresh button which clears this cache.
+  </div>
+</div>
+
+<BR><BR><BR><BR><BR><BR><BR><BR><BR><BR><BR><BR><BR><BR><BR><BR><BR><BR><BR><BR><BR>
+{% endblock %}

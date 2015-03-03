@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }} Registration Complete
+{% endblock %}
+
+{% block description %}
+<h2>Account Active</h2>
+{% endblock %}
+
+{% block content %}
+<p>{% trans '<strong>Thank you!</strong>' %}<br/>
+   {% trans 'Your account is now active.' %}<br/>
+   {% trans 'Please ' %}<a href="{% url home_view %}">login</a>.</p>
+{% endblock %}

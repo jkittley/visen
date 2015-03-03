@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&signed_in=true"></script>
+
+<script>
+var geocoder;
+
+$(document).ready(function() {
+    initialize_map();
+    {% for sp in default_data.sensor_profiles %}
+    add_marker_to_map({{ sp.pk }},'{{ sp.lon }}','{{ sp.lat }}','{{ sp.address }}');
+    {% endfor %}
+    // codeAddress('87 Atherley Road, Shirley, Southampton, SO15 5DT');
+});
+
+
+function initialize_map() {
+    geocoder = new google.maps.Geocoder();
+}
+
+function add_marker_to_map(apk, lon, lat, address) {
+    if (lon==='None' || lat==='None') { 
+        console.log(apk+' -- '+address + ' needs geo data');   
+ 
+        geocoder.geocode( { 'address': address}, function(results, status) {
+        
+        if (status == google.maps.GeocoderStatus.OK) {
+            
+            var alon = results[0].geometry.location.D;  // lon
+            var alat = results[0].geometry.location.k;  // lat
+            
+                $.ajax({
+                    type: "POST",
+                    url: "{% url addgeodata %}",
+                    data: { pk: apk, lon: alon, lat: alat }
+                })
+                .done(function( msg ) {
+                    console.log( "Saved: " + msg );
+                });
+            
+
+        } else {
+            console.log('Geocode was not successful for the following reason: ' + status);
+        }
+      });
+    }
+}
+
+
+    
+
+  // geocoder.geocode( { 'address': address}, function(results, status) {
+  //   if (status == google.maps.GeocoderStatus.OK) {
+  //     map.setCenter(results[0].geometry.location);
+  //     var marker = new google.maps.Marker({
+  //         map: map,
+  //         position: results[0].geometry.location
+  //     });
+  //   } else {
+  //     alert('Geocode was not successful for the following reason: ' + status);
+  //   }
+  // });
+
+
+
+
+
+// using jQuery
+function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie != '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = jQuery.trim(cookies[i]);
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+var csrftoken = getCookie('csrftoken');
+
+function csrfSafeMethod(method) {
+    // these HTTP methods do not require CSRF protection
+    return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+}
+function sameOrigin(url) {
+    // test that a given url is a same-origin URL
+    // url could be relative or scheme relative or absolute
+    var host = document.location.host; // host + port
+    var protocol = document.location.protocol;
+    var sr_origin = '//' + host;
+    var origin = protocol + sr_origin;
+    // Allow absolute or scheme relative URLs to same origin
+    return (url == origin || url.slice(0, origin.length + 1) == origin + '/') ||
+        (url == sr_origin || url.slice(0, sr_origin.length + 1) == sr_origin + '/') ||
+        // or any other URL that isn't scheme relative or absolute i.e relative.
+        !(/^(\/\/|http:|https:).*/.test(url));
+}
+$.ajaxSetup({
+    beforeSend: function(xhr, settings) {
+        if (!csrfSafeMethod(settings.type) && sameOrigin(settings.url)) {
+            // Send the token to same-origin, relative URLs only.
+            // Send the token only if the method warrants CSRF protection
+            // Using the CSRFToken value acquired earlier
+            xhr.setRequestHeader("X-CSRFToken", csrftoken);
+        }
+    }
+});
+
+</script>
+{% endblock %}
+
+{% block content %}
+{% load staticfiles %}
+<BR>
+LOOK AT THE CONSOLE!!!
+<BR>
+{% endblock %}
+
+
+
+

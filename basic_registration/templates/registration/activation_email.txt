@@ -1,0 +1,17 @@
+{% load i18n %}
+{% trans "Activate account at" %} {{ site.name }}:
+
+http://{{ site.domain }}{% url registration_activate activation_key %}
+
+Link is valid for {{ expiration_days }} days.
+
+Thank you for registering on {{ site.name }}! 
+We will not use your data for any other purpose than academic research, 
+and we will not disclose to anyone else. If any information 
+will be published, this will be in anonymous form. 
+
+If at any point you will want your personal information to be removed 
+from our database, please tell us via the contact page of {{ site.name }}.
+
+The {{ site.name }} team
+

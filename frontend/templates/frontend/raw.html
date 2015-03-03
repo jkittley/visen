@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+<script>
+$(document).ready(function() {
+    // Date time pickers
+    $('#start').datetimepicker({
+            format: 'yyyy-mm-dd hh:ii:ss', 
+            startView: 3, 
+            minView: 1,
+            autoclose: true
+    });
+    $('#end').datetimepicker({
+            format: 'yyyy-mm-dd hh:ii:ss', 
+            startView: 3, 
+            minView: 1,
+            autoclose: true
+    });
+    $('#sensor').val({{ sensor.pk }});
+    $('#sensor').on('change', function() { get_channels(); });
+    get_channels();
+    $('#infobar').html('Sum Total: '+sumuptotal);
+});
+function get_channels(){ 
+   sensorpk = $('#sensor').val();
+   $('#channel')
+    .find('option')
+    .remove();
+   $.getJSON( "/get_channels/"+sensorpk, function( data ) { 
+     $.each( data, function( key, channel ) {
+        $('#channel')
+         .append($("<option></option>")
+         .attr("value",channel.pk)
+         .text(channel.name)); 
+     });
+     $('#channel').val({{ channel.pk }});
+   });
+}
+var sumuptotal = 0;
+function sumup(addon) {
+  sumuptotal += addon;
+}
+</script>
+{% endblock %}
+
+{% block content %}
+
+
+<h3>Raw Data Checker</h3>
+
+<form name="basicsForm" id="basicsForm" action="{% url raw %}" method="POST">
+{% csrf_token %}
+<div class="panel panel-default">
+  <div class="panel-heading">Raw data checker</div>
+  <div class="panel-body">
+
+    <div class="row">   
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="charttype">Sensor</label>
+          <select name="sensor" id="sensor" class="form-control">
+            {% for sensor in allsensors %}
+            <option value="{{ sensor.pk }}">{{ sensor.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="charttype">Channel</label>
+          <select name="channel" id="channel" class="form-control">
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">    
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="start">Start date</label>
+          <input type="text" class="form-control" name="start" id="start" value="{{ start }}">
+        </div>
+      </div>
+      <div class="col-md-6">
+          <div class="form-group">
+            <label for="end">End date</label>
+            <input type="text" class="form-control" name="end" id="end"  value="{{ end }}">
+          </div>
+      </div>
+    </div>
+  </div>
+  <div class="panel-footer"><button class="btn btn-block btn-primary">Load</button></div>
+</div>
+</form>
+
+{% if data %}
+<div id="infobar" class="alert alert-info" role="alert"></div>
+ <table class="table">
+      <thead>
+        <th>Sensor</th>
+        <th>Channel</th>
+        <th>Time</th>
+        <th>Reading</th>
+      </thead>
+      <tbody>
+    {% for d in data %}
+      <tr>
+        <td>{{ d.sensor.name }}</td>
+        <td>{{ d.channel.name }}</td>
+        <td>{{ d.timestamp|date:"Y-m-d H:i:s" }}</td>
+        <td>{{ d.value }}<script>sumup({{ d.value }});</script></td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% endblock %}

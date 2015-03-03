@@ -1,0 +1,24 @@
+
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.dot {
+  stroke-width:1px;
+}
+
+.centroid {
+  stroke-width:1px;
+}
+
+.tooltip {
+    padding:10px;
+    background-color: yellow;
+    position: absolute;
+    border: 1px solid black;
+    pointer-events: none;
+}
