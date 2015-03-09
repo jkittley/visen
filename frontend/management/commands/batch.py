@@ -19,23 +19,39 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         
+        # 
+        # New Calendar Combo of whole year
+        # 
+        year = 2014
+        seasons = get_season_dates(year)
+        for site_type in ["depot","library","leisure"]:
+            profiles = Sensor_profile.objects.filter(longname__icontains=site_type)
+            for profile in profiles:
+                print "======================================================="
+                print call_command('chart_calendar_vs_opening', 
+                    period_str=str( datetime.strftime(seasons['winter']['start'], '%Y-%m-%d')+','+datetime.strftime(seasons['autumn']['end'], '%Y-%m-%d') ),
+                    filename='zzz_images/chart_calendar_vs_opening/'+site_type+'/'+profile.longname+'.pdf',
+                    sensor_name=profile.sensor.mac,
+                )
+                print "======================================================="
+
 
         # 
         # Boxplot of whole year
         # 
-        year = 2014
-        seasons = get_season_dates(year)
-        for channel_name in ['gas','electricity']:
-            for site_type in ["depot","library","leisure"]:
-                print "======================================================="
-                print call_command('chart_boxplot_year', 
-                    year = year,
-                    filter=site_type,
-                    channel_name=channel_name,
-                    filename='zzz_images/chart_boxplot_year/'+channel_name+'/'+site_type+'.pdf',
-                    samescale=False,
-                )
-                print "======================================================="
+        # year = 2014
+        # seasons = get_season_dates(year)
+        # for channel_name in ['gas','electricity']:
+        #     for site_type in ["depot","library","leisure"]:
+        #         print "======================================================="
+        #         print call_command('chart_boxplot_year', 
+        #             year = year,
+        #             filter=site_type,
+        #             channel_name=channel_name,
+        #             filename='zzz_images/chart_boxplot_year/'+channel_name+'/'+site_type+'.pdf',
+        #             samescale=False,
+        #         )
+        #         print "======================================================="
 
 
         # 
