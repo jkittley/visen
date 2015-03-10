@@ -477,21 +477,22 @@ def init(request):
     # --------------------------------------------------------------------------------------------------
     # Calendar for comapring each site type 
     # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # for sitetype in ['depot','library','leisure']:
-    #     for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:  
-    #         vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' - '+chdata[0], group='Calendar Compare Sites Winter 13 to Autumn 14', chart=chart_cal)
-    #         if created:
-    #             vis.settings = json.dumps({
-    #             'width': 300,
-    #             'height': 300
-    #             })
-    #             vis.save()
-    #             sensors_profiles = Sensor_profile.objects.filter(longname__icontains=sitetype) 
-    #             for sprofile in sensors_profiles:
-    #                 add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -1)
+    for sitetype in ['depot','library','leisure']:
+        for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:  
+            vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' - '+chdata[0], group='Calendar Compare Sites Winter 13 to Autumn 14', chart=chart_cal)
+            if created:
+                vis.settings = json.dumps({
+                'width': 300,
+                'height': 300,
+                'scale_global': False
+                })
+                vis.save()
+                sensors_profiles = Sensor_profile.objects.filter(longname__icontains=sitetype) 
+                for sprofile in sensors_profiles:
+                    add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -1)
 
 
     # # --------------------------------------------------------------------------------------------------
@@ -547,15 +548,15 @@ def init(request):
     # # --------------------------------------------------------------------------------------------------
     # # Histograms - Core Sites together
     # # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
-    #     vis, created = Visualisation.objects.get_or_create(name='All Core Sites - '+chdata[0], group='Histograms Core Sites W 2013 to A 2014', chart=chart_histogram)
-    #     if created:
-    #         sensors_profiles = Sensor_profile.objects.all().filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))   
-    #         for sprofile in sensors_profiles:
-    #             add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -8)
+    for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
+        vis, created = Visualisation.objects.get_or_create(name='All Core Sites - '+chdata[0], group='Histograms Core Sites W 2013 to A 2014', chart=chart_histogram)
+        if created:
+            sensors_profiles = Sensor_profile.objects.all().filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))   
+            for sprofile in sensors_profiles:
+                add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -8)
 
 
     # # --------------------------------------------------------------------------------------------------

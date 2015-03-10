@@ -19,6 +19,37 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         
+        # 
+        # Bank holidays
+        # 
+        for site_type in ["library","leisure"]:
+            profiles = Sensor_profile.objects.filter(longname__icontains=site_type)
+            for profile in profiles:
+                print "======================================================="
+                print call_command('tier2_bank_holidays', 
+                    filename='zzz_images/tier2_bank_holidays/'+site_type+'/'+profile.longname+'.png',
+                    sensor_name=profile.sensor.mac,
+                )
+                print "======================================================="
+
+
+
+        # 
+        # Individual Bar Plots "depot","library","leisure"
+        # 
+        # year = 2014
+        # seasons = get_season_dates(year)
+        # for site_type in ["depot","library","leisure"]:
+        #     profiles = Sensor_profile.objects.filter(longname__icontains=site_type)
+        #     for profile in profiles:
+        #         print "======================================================="
+        #         print call_command('tier2_bar_monthly', 
+        #             period_str=str( datetime.strftime(seasons['winter']['start'], '%Y-%m-%d')+','+datetime.strftime(seasons['autumn']['end'], '%Y-%m-%d') ),
+        #             filename='zzz_images/tier2_bar_monthly/'+site_type+'/'+profile.longname+'.png',
+        #             sensor_name=profile.sensor.mac,
+        #             normalize=True,
+        #         )
+        #         print "======================================================="
 
 
         # 
@@ -26,13 +57,13 @@ class Command(BaseCommand):
         # 
         # year = 2014
         # seasons = get_season_dates(year)
-        # for site_type in ["depot"]:
+        # for site_type in ["depot","library","leisure"]:
         #     profiles = Sensor_profile.objects.filter(longname__icontains=site_type)
         #     for profile in profiles:
         #         print "======================================================="
         #         print call_command('chart_boxplot_indv', 
         #             period_str=str( datetime.strftime(seasons['winter']['start'], '%Y-%m-%d')+','+datetime.strftime(seasons['autumn']['end'], '%Y-%m-%d') ),
-        #             filename='zzz_images/chart_boxplot_indv/'+site_type+'/'+profile.longname+'.pdf',
+        #             filename='zzz_images/chart_boxplot_indv/'+site_type+'/'+profile.longname+'.png',
         #             sensor_name=profile.sensor.mac,
         #         )
         #         print "======================================================="
@@ -47,9 +78,9 @@ class Command(BaseCommand):
         #     profiles = Sensor_profile.objects.filter(longname__icontains=site_type)
         #     for profile in profiles:
         #         print "======================================================="
-        #         print call_command('chart_calendar_vs_opening', 
+        #         print call_command('tier2_calendar_vs_opening', 
         #             period_str=str( datetime.strftime(seasons['winter']['start'], '%Y-%m-%d')+','+datetime.strftime(seasons['autumn']['end'], '%Y-%m-%d') ),
-        #             filename='zzz_images/chart_calendar_vs_opening/'+site_type+'/'+profile.longname+'.pdf',
+        #             filename='zzz_images/tier2_calendar_vs_opening/'+site_type+'/'+profile.longname+'.png',
         #             sensor_name=profile.sensor.mac,
         #         )
         #         print "======================================================="
@@ -67,7 +98,7 @@ class Command(BaseCommand):
         #             year = year,
         #             filter=site_type,
         #             channel_name=channel_name,
-        #             filename='zzz_images/chart_boxplot_year/'+channel_name+'/'+site_type+'.pdf',
+        #             filename='zzz_images/chart_boxplot_year/'+channel_name+'/'+site_type+'.png',
         #             samescale=False,
         #         )
         #         print "======================================================="
