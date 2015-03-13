@@ -6,31 +6,160 @@
 {% endblock %}
 
 {% block head %}
+<style>
+  .limit_scroll {
+    max-height: 300px;
+    overflow-y: scroll;
+  }
+  .pagination {
+     margin-top:0;
+     float:right;
+  }
+  .dataTables_filter label {
+   float:right
+  }
+</style>
+<script>
+var filters_mac = {{ filters_mac|safe }};
+var filter_date_start = '{{ filter_date_start|date:"Y-m-d" }}'
+
+$(document).ready(function() {
+    $('#vistable').DataTable();
+    $('.add_mac').click(function() { 
+      selected_mac = parseInt($(this).attr('href').substring(1));
+      if (filters_mac.indexOf(selected_mac)<0) filters_mac.push(selected_mac);
+      build_filter_link(true);
+    });
+    $('.remove_mac').click(function() { 
+      selected_mac = parseInt($(this).attr('href').substring(1));
+      index = filters_mac.indexOf(selected_mac);
+      if (index > -1) filters_mac.splice(index, 1);
+      console.log(filters_mac);
+      build_filter_link(true);
+    });
+    $('.add_all').click(function() { 
+      filter_term = $(this).attr('href').substring(1);
+      $('.'+filter_term+' a').each(function(i, obj) {
+        selected_mac = parseInt($(this).attr('href').substring(1));
+        if (filters_mac.indexOf(selected_mac)<0) filters_mac.push(selected_mac);
+      });
+      build_filter_link(true);
+    });
+    $('.remove_date').click(function() { 
+      filter_date_start = '';
+      build_filter_link(true);
+    });
+
+    // Date time pickers
+    $('#start').datetimepicker({
+            format: 'yyyy-mm-dd', 
+            startView: 3, 
+            minView: 2,
+            autoclose: true
+    }).on('changeDate', function(ev){
+        filter_date_start = $('#start').val();
+        build_filter_link(true);
+
+    });
+});
+
+
+function build_filter_link(go) {
+  if (filters_mac.length>0 || filter_date_start.length>0) {
+    link = "/?filter=on";
+  } else {
+    link = "/";
+  }
+  if (filter_date_start.length>0) link += "&start_date="+filter_date_start;
+  if (filters_mac.length>0) link += "&sensors="+filters_mac.join(",");
+  console.log(link);
+  if (go) window.location.href = link;
+  return link;
+}
+
+</script>
 {% endblock %}
 
 
 {% block content %}
-<h3>Existing Visualisations  <span class="pull-right"><a href="{% url edit 'new' %}" id="createButton" type="submit" class="btn btn-primary"><i class="fa fa-plus"></i> Create a new visualisation</a></span></h3>
-<hr>
 
-{% for chart_type, chart_groups in groups.items %}
-<a name="{{ chart_type }}"></a>
-<div class="panel panel-info">
-  <div class="panel-heading" style="cursor:pointer;">
-    <h3 class="panel-title" data-toggle="collapse" data-target="#subsec_{{forloop.counter}}" aria-expanded="false" aria-controls="collapseExample">{{ chart_type }}<button class="pull-right btn btn-xs btn-info" type="button">Show / Hide</button>
-    </h3>
-  </div>
-  <div id="subsec_{{forloop.counter}}" class="list-group collapse">
-  {% for group, group_vis in chart_groups.items %}
-      <a href="#" class="list-group-item disabled">{{ group }}</a> 
-      {% for vis in group_vis %}
-        <a class="list-group-item" href="{% url view vis.pk %}">{{ vis.s_date }} to {{ vis.e_date }} -- {{ vis.name }}{% if vis.cached %}<span class="badge">Cached</span>{% endif %}</a>
-      {% endfor %}
-  {% endfor %}
+
+
+<div class="row">
+  <div class="col-md-4">
+
+    <h4>Filter</h4>
+    <hr>
+
+    <div class="panel panel-primary">
+      <div class="panel-heading">
+        <h3 class="panel-title">Contains Date</h3>
+      </div>
+      <div class="panel-body">
+        <div class="input-group">
+          <input type="text" class="form-control" name="start" id="start" value="{{ filter_date_start|date:"Y-m-d" }}">
+          {% if filter_date_start %}
+          <span class="input-group-btn">
+            <button class="btn btn-danger remove_date" type="button">x</button>
+          </span>
+          {% else %}
+           <span class="input-group-addon"></span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  
+
+
+
+
+    <div class="panel panel-primary">
+      <div class="panel-heading">
+        <h3 class="panel-title">Contains Sensors (sites)</h3>
+      </div>
+       <table class="table table-bordered" cellspacing="0" width="100%">
+        <tbody>
+           {% for cat in profiles %}
+                <tr>
+                  <td class="info">{{ cat.name }} <a href="#{{ cat.filter_term }}" class="pull-right add_all">Select All</a></td>
+                </tr>
+              {% for profile in cat.profiles %}
+                <tr>
+                  <td class="{{ cat.filter_term }} {% if profile.sensor.mac|add:"0" in filters_mac %}warning{% endif %}"><a href="#{{ profile.sensor.mac }}" class="add_mac">{{ profile.longname }}</a>{% if profile.sensor.mac|add:"0" in filters_mac %}<a href="#{{ profile.sensor.mac }}" class="btn btn-xs btn-danger pull-right remove_mac">x</a>{% endif %}</td>
+                </tr>
+              {% endfor %}
+              </optgroup>
+            {% endfor %}
+          </tbody>
+        </table>
+    </div>
+
+  </div><div class="col-md-8">
+
+    <h4>{{ results_title }}  <span class="pull-right"><a href="{% url edit 'new' %}" id="createButton" type="submit" class="btn btn-primary"><i class="fa fa-plus"></i> New</a></span></h4>
+    <hr>
+    <table id="vistable" class="table table-striped table-bordered" cellspacing="0" width="100%">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Chart</th>
+                <th>Group</th>
+                <th>Cached</th>
+            </tr>
+        </thead>
+        
+        <tbody>
+          {% for vis in vises %}
+          <tr>
+                <td><a href="{% url view vis.pk %}">{{ vis.name }}</a></td>
+                <td>{{ vis.chart.name }}</td>
+                <td>{{ vis.group }}</td>
+                <td>{% if vis.cache %}<i class="fa fa-check"></i>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+    </table>
+
   </div>
 </div>
-{% endfor %}
-
-<BR><BR>
-
 {% endblock %}

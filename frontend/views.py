@@ -22,41 +22,55 @@ import matplotlib.dates as mdates
 
 @login_required
 def index(request):
- 
-    unique_groups = {}
-    for vis in Visualisation.objects.all():
-        if vis.group not in unique_groups:
-            
-            if vis.chart.name not in unique_groups:
-                unique_groups[vis.chart.name] = {}
+    
+    filters_mac   = []
+    vises         = []
+    profile_cats  = ['Libraries','Depots','Leisure']
+    results_title = ''
+    filter_date_start = None
 
-            if vis.group not in unique_groups[vis.chart.name]:
-                unique_groups[vis.chart.name][vis.group] = []
-
-        if vis.cache != '':
-            cached = True
-        else:
-            cached = False
+    if request.method =='GET' and request.GET.get('filter'):
         
-        start, end = vis.get_input_tme_span()
-        if start != None and end != None:
-            s_date = start.strftime("%d/%m/%Y")
-            e_date = end.strftime("%d/%m/%Y")
-        else:
-            s_date = 'Unknown'
-            e_date = 'Error'
-            
-        unique_groups[vis.chart.name][vis.group].append({  
-            'name': vis.name,
-            's_date': s_date,
-            'e_date': e_date,
-            'cached': cached,
-            'pk' : vis.pk
-        })
+        visins = VisInput.objects.all()
+
+        if request.GET.get('sensors'):
+            filters_mac = request.GET.get('sensors').split(',')
+            filters_mac = [int(x) for x in filters_mac]
+            for fm in filters_mac:
+                visins = visins.filter(sensor__mac=fm)
+        
+        if request.GET.get('start_date'):
+            filter_date_start = datetime.strptime(request.GET.get('start_date'), '%Y-%m-%d')
+            visins = visins.filter(period_start__lte=filter_date_start, period_end__gte=filter_date_start)
+
+        for v in visins:
+            vises.append(v.vis)
+        results_title = "Results"
 
        
+    else:
+        results_title = "All Visualisations"
+        vises = Visualisation.objects.all().order_by('group')
+
+    sensor_profiles_libs = Sensor_profile.objects.filter(longname__icontains='library').order_by('longname')
+    sensor_profiles_deps = Sensor_profile.objects.filter(longname__icontains='depot').order_by('longname')
+    sensor_profiles_leis = Sensor_profile.objects.filter(longname__icontains='leisure').order_by('longname')
+    sensor_profiles_othr = Sensor_profile.objects.exclude(longname__icontains='library').exclude(longname__icontains='depot').exclude(longname__icontains='leisure').order_by('longname')
+
+    groups          = Visualisation.objects.values('group').distinct()
+
     context = RequestContext(request, { 
-        'groups': unique_groups
+        'results_title':results_title,
+        'filters_mac': filters_mac,
+        'filter_date_start': filter_date_start,
+        'groups': groups,
+        'vises': vises,
+        'profiles': [
+            { 'name':'Libraries', 'profiles': sensor_profiles_libs, 'filter_term':'library'},
+            { 'name':'Depots',    'profiles': sensor_profiles_deps, 'filter_term':'depot' },
+            { 'name':'Leisure & Swimming', 'profiles': sensor_profiles_leis, 'filter_term':'leisure' },
+            { 'name':'Other',     'profiles': sensor_profiles_othr, 'filter_term':'other' },
+        ]
     })
 
     return render_to_response('frontend/index.html',context_instance=context)
@@ -264,6 +278,10 @@ def edit_input(request, vispk, visinpk):
 
     vis = Visualisation.objects.get(pk=vispk) 
 
+    visin_config = ''
+    if vis.chart.visin_config != '{}':
+        visin_config = json.loads(vis.chart.visin_config)
+
     if visinpk == 'new':
         sensor  = Sensor.objects.all()[0]
         now = datetime.now()
@@ -276,30 +294,39 @@ def edit_input(request, vispk, visinpk):
     visin = VisInput.objects.get(pk=visinpk)
 
     if request.method == 'POST':
-        start      = request.POST.get('start')
-        end        = request.POST.get('end')
+        
         visin.sensor       = Sensor.objects.all().get(pk=request.POST.get('sensor'))
-        visin.channel      = Channel.objects.all().get(pk=request.POST.get('channel'))
-        visin.summode      = request.POST.get('summode')
-        visin.preprocess   = request.POST.get('preprocess')
         visin.name         = request.POST.get('name')
-        tmp_int = int(request.POST.get('interval'))
-        if tmp_int == 0:
-            visin.interval     = request.POST.get('cust_interval')
-        else:
-            visin.interval     = tmp_int
-        visin.period_start = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
-        visin.period_end   = datetime.strptime(end,   '%Y-%m-%d %H:%M:%S')
+
+        if request.POST.get('start'):
+            start      = request.POST.get('start')
+            visin.period_start = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
+        if request.POST.get('end'):
+            end        = request.POST.get('end')
+            visin.period_end   = datetime.strptime(end,   '%Y-%m-%d %H:%M:%S')
+        if request.POST.get('channel'):
+            visin.channel      = Channel.objects.all().get(pk=request.POST.get('channel'))
+        if request.POST.get('summode'):
+            visin.summode      = request.POST.get('summode')
+        if request.POST.get('preprocess'):
+            visin.preprocess   = request.POST.get('preprocess')
+        if request.POST.get('interval'):
+            tmp_int = int(request.POST.get('interval'))
+            if tmp_int == 0:
+                visin.interval     = request.POST.get('cust_interval')
+            else:
+                visin.interval     = tmp_int
+
         visin.save();
         vis.cache = ''
         vis.save()
         return HttpResponseRedirect('/edit/'+str(vispk))
 
-    
 
     context = RequestContext(request, { 
         'vis'  : vis,
         'visin': visin,
+        'visin_config': visin_config,
         'allsensors': Sensor.objects.all().order_by('name')
     })
     return render_to_response('frontend/edit_input.html',context_instance=context)
@@ -375,7 +402,7 @@ def add_vis_input(vis, sensor, channel, start, end, name=None, summode=0, interv
 # ----------------------------------------------------------------------------- 
 # Create basic data and visualisation
 # -----------------------------------------------------------------------------
- 
+
 def init(request):
 
     report = []
@@ -388,40 +415,92 @@ def init(request):
 
     # Build charts
     default_settings  = json.dumps({})
-    chart_box,          created = Chart.objects.get_or_create(name='Box Plot', ref='box', min_inputs=1, max_inputs=50, default_settings=default_settings )
+    visin_config      = json.dumps({})
+    chart_box,          created = Chart.objects.get_or_create(name='Box Plot', ref='box', min_inputs=1, max_inputs=50, default_settings=default_settings, visin_config=visin_config )
     
     default_settings  = json.dumps({ 'scale_global': True, })
-    chart_cal,          created = Chart.objects.get_or_create(name='Calendar', ref='calendar', min_inputs=1, max_inputs=100, default_settings=default_settings )
+    visin_config      = json.dumps({})
+    chart_cal,          created = Chart.objects.get_or_create(name='Calendar', ref='calendar', min_inputs=1, max_inputs=100, default_settings=default_settings, visin_config=visin_config )
     
-    default_settings = json.dumps({ 'type': 'line', })
-    chart_time,         created = Chart.objects.get_or_create(name='Time Series', ref='time', min_inputs=1, max_inputs=100, default_settings=default_settings )
+    default_settings  = json.dumps({ 'type': 'line', })
+    visin_config      = json.dumps({})
+    chart_time,         created = Chart.objects.get_or_create(name='Time Series', ref='time', min_inputs=1, max_inputs=100, default_settings=default_settings, visin_config=visin_config )
     
-    default_settings = json.dumps({})
-    chart_table,        created = Chart.objects.get_or_create(name='Table', ref='table', min_inputs=1, max_inputs=100, default_settings=default_settings )
+    default_settings  = json.dumps({})
+    visin_config      = json.dumps({})
+    chart_table,        created = Chart.objects.get_or_create(name='Table', ref='table', min_inputs=1, max_inputs=100, default_settings=default_settings, visin_config=visin_config )
     
-    default_settings = json.dumps({})
-    chart_scatter,      created = Chart.objects.get_or_create(name='Scatter', ref='scatter', min_inputs=2, max_inputs=100, default_settings=default_settings )
+    default_settings  = json.dumps({})
+    visin_config      = json.dumps({})
+    chart_scatter,      created = Chart.objects.get_or_create(name='Scatter', ref='scatter', min_inputs=2, max_inputs=100, default_settings=default_settings, visin_config=visin_config )
     
-    default_settings = json.dumps({ 'interval_hours': 3, 'clusters_requires': 7, 'dist_mode':'' })
-    chart_cal_cluster,  created = Chart.objects.get_or_create(name='Calendar Cluster', ref='calcluster', min_inputs=1, max_inputs=1, default_settings=default_settings )
+    default_settings  = json.dumps({ 'interval_hours': 3, 'clusters_requires': 7, 'dist_mode':'' })
+    visin_config      = json.dumps({})
+    chart_cal_cluster,  created = Chart.objects.get_or_create(name='Calendar Cluster', ref='calcluster', min_inputs=1, max_inputs=1, default_settings=default_settings, visin_config=visin_config )
     
-    default_settings = json.dumps({ 'full_circle': True, 'width': 500, 'height': 500 })
-    chart_star,         created = Chart.objects.get_or_create(name='Star', ref='star', min_inputs=1, max_inputs=100, default_settings=default_settings )
+    default_settings  = json.dumps({ 'full_circle': True, 'width': 500, 'height': 500 })
+    visin_config      = json.dumps({})
+    chart_star,         created = Chart.objects.get_or_create(name='Star', ref='star', min_inputs=1, max_inputs=100, default_settings=default_settings, visin_config=visin_config )
     
-    default_settings = json.dumps({ 'width': 500, 'height': 500 })
-    chart_histogram,    created = Chart.objects.get_or_create(name='Histogram', ref='histogram', min_inputs=1, max_inputs=100, default_settings=default_settings )
+    default_settings  = json.dumps({ 'width': 500, 'height': 500 })
+    visin_config      = json.dumps({})
+    chart_histogram,    created = Chart.objects.get_or_create(name='Histogram', ref='histogram', min_inputs=1, max_inputs=100, default_settings=default_settings, visin_config=visin_config )
+
+    default_settings  = json.dumps({})
+    chart_box1combo, created = Chart.objects.get_or_create(name='Boxplot Single Site Combo', ref='box1combo', min_inputs=1, max_inputs=50, default_settings=default_settings, visin_config=visin_config )
+    
+    default_settings  = json.dumps({})
+    visin_config      = json.dumps({})
+    chart_timechopen, created = Chart.objects.get_or_create(name='Time Series Day Scale', ref='timechopen', min_inputs=1, max_inputs=50, default_settings=default_settings, visin_config=visin_config )
+    
+    default_settings  = json.dumps({})
+    visin_config      = json.dumps({})
+    chart_daybymonth, created = Chart.objects.get_or_create(name='Bar Days By Month', ref='daybymonth', min_inputs=1, max_inputs=50, default_settings=default_settings, visin_config=visin_config )
+    
+    default_settings  = json.dumps({})
+    visin_config      = json.dumps({ "hide":["channel","preprocess","interval","summode"] })
+    chart_channelsvsopen, created = Chart.objects.get_or_create(name='Calendar Individual Gas, Elec, Temp and Opening', ref='channelsvsopen', min_inputs=1, max_inputs=50, default_settings=default_settings, visin_config=visin_config)
+    
+    default_settings  = json.dumps({})
+    visin_config      = json.dumps({})
+    chart_radar_times, created = Chart.objects.get_or_create(name='Radar Usage Times', ref='radar_times', min_inputs=1, max_inputs=50, default_settings=default_settings, visin_config=visin_config)
+    
 
     # Build channels
     channel_gas  = Channel.objects.all().get(name='Gas')  
     channel_elec = Channel.objects.all().get(name='Electricity')  
     channel_temp = Channel.objects.all().get(name='Temp (Feels like)')  
     channel_open = Channel.objects.all().get(name__icontains='Opening')  
+    
     seasons = get_season_dates(2014)
 
 
+   
+    # # --------------------------------------------------------------------------------------------------
+    # # New Cal Plots - Core buildings 
+    # # --------------------------------------------------------------------------------------------------
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
+    for sitetype in ['depot','library','leisure']:
+        sensors_profiles = Sensor_profile.objects.filter(longname__icontains=sitetype) 
+        for sprofile in sensors_profiles:
+            vis, created = Visualisation.objects.get_or_create(name=sprofile.longname+' Dec 2013 - Dec 2014', group=sitetype.capitalize()+' Calendar Channel Compare', chart=chart_channelsvsopen)
+            if created:
+                add_vis_input(vis, sprofile.sensor, channel_elec, start, end, sprofile.longname, 0, -6)
+                
 
-
-
+    # # --------------------------------------------------------------------------------------------------
+    # # Radar - Core buildings 
+    # # --------------------------------------------------------------------------------------------------
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
+    for sitetype in ['depot','library','leisure']:
+        vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' Buildings Dec 2013 - Dec 2014', group='Radar Compare', chart=chart_radar_times)
+        if created:
+            sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype)    
+            for sprofile in sensors_profiles:
+                add_vis_input(vis, sprofile.sensor, channel_elec, start, end, sprofile.longname, 0, -6)
+                    
 
     # --------------------------------------------------------------------------------------------------
     # Line - Core buildings Electricity and Gas Over time
@@ -437,8 +516,6 @@ def init(request):
                 else:
                     nm = m+1
                     y = 2014
-
-
 
                 start   = datetime.strptime(str('1-'+str(m)+'-'+str(y)), "%d-%m-%Y")
                 end     = datetime.strptime(str('1-'+str(nm)+'-'+str(y)), "%d-%m-%Y")
@@ -456,21 +533,21 @@ def init(request):
     # --------------------------------------------------------------------------------------------------
     # Calendar Opening Hours 
     # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # for sitetype in ['library','leisure']:
-    #     vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' Openning Hours', group='Calendar Opening Hours', chart=chart_cal)
-    #     if created:
-    #         vis.settings = json.dumps({
-    #         'width': 300,
-    #         'height': 300
-    #         })
-    #         vis.save()
-    #         sensors_profiles = Sensor_profile.objects.filter(longname__icontains=sitetype) 
+    for sitetype in ['library','leisure']:
+        vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' Openning Hours', group='Calendar Opening Hours', chart=chart_cal)
+        if created:
+            vis.settings = json.dumps({
+            'width': 300,
+            'height': 300
+            })
+            vis.save()
+            sensors_profiles = Sensor_profile.objects.filter(longname__icontains=sitetype) 
 
-    #         for sprofile in sensors_profiles:
-    #             add_vis_input(vis, sprofile.sensor, channel_open, start, end, None, 0, -1)
+            for sprofile in sensors_profiles:
+                add_vis_input(vis, sprofile.sensor, channel_open, start, end, None, 0, -1)
 
 
 
@@ -498,50 +575,50 @@ def init(request):
     # # --------------------------------------------------------------------------------------------------
     # # Calendar of multiple sites, but with own colour coding range
     # # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # for sitetype in ['depot','library','leisure']:
-    #     for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:  
-    #         vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' - '+chdata[0], group='Calendar Sites Local Coloring Winter 13 to Autumn 14', chart=chart_cal)
-    #         if created:
-    #             vis.settings = json.dumps({
-    #                 'scale_global': False
-    #             })
-    #             vis.save()
-    #             sensors_profiles = Sensor_profile.objects.filter(longname__icontains=sitetype) 
-    #             for sprofile in sensors_profiles:
-    #                 add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -1)
+    for sitetype in ['depot','library','leisure']:
+        for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:  
+            vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' - '+chdata[0], group='Calendar Sites Local Coloring Winter 13 to Autumn 14', chart=chart_cal)
+            if created:
+                vis.settings = json.dumps({
+                    'scale_global': False
+                })
+                vis.save()
+                sensors_profiles = Sensor_profile.objects.filter(longname__icontains=sitetype) 
+                for sprofile in sensors_profiles:
+                    add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -1)
 
 
 
     # # --------------------------------------------------------------------------------------------------
     # # Calendar for each building 
     # # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # sensors_profiles = Sensor_profile.objects.all().filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))
-    # for sprofile in sensors_profiles:
-    #     for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:  
-    #         vis, created = Visualisation.objects.get_or_create(name=sprofile.longname.capitalize()+' - '+chdata[0]+'', group='Calendar Idv Site Winter 13 to Autumn 14', chart=chart_cal)
-    #         if created:
-    #             add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -1)
+    sensors_profiles = Sensor_profile.objects.all().filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))
+    for sprofile in sensors_profiles:
+        for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:  
+            vis, created = Visualisation.objects.get_or_create(name=sprofile.longname.capitalize()+' - '+chdata[0]+'', group='Calendar Idv Site Winter 13 to Autumn 14', chart=chart_cal)
+            if created:
+                add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -1)
 
 
     # # --------------------------------------------------------------------------------------------------
     # # Cluster Calendar - Core Sites (Plot per Site)
     # # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # sensors_profiles = Sensor_profile.objects.all().filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))
-    # for sprofile in sensors_profiles:
-    #     for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
-    #         vis, created = Visualisation.objects.get_or_create(name=sprofile.longname+' '+chdata[0], group='Cluster Calendar 2014', chart=chart_cal_cluster)
-    #         if created:
-    #             vis.save()
-    #             add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -5)
+    sensors_profiles = Sensor_profile.objects.all().filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))
+    for sprofile in sensors_profiles:
+        for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
+            vis, created = Visualisation.objects.get_or_create(name=sprofile.longname+' '+chdata[0], group='Cluster Calendar 2014', chart=chart_cal_cluster)
+            if created:
+                vis.save()
+                add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -5)
 
 
 
@@ -562,21 +639,21 @@ def init(request):
     # # --------------------------------------------------------------------------------------------------
     # # Histograms - Core Sites Seporatly
     # # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # for sitetype in ['depot','library','leisure']:
-    #     for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
-    #         vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' - '+chdata[0]+' Winter 2013 to Autumn 2014', group='Histograms Individual W 2013 to A 2014', chart=chart_histogram)
-    #         if created:
-    #             vis.settings = json.dumps({
-    #                 'width': 300,
-    #                 'height': 300
-    #             })
-    #             vis.save()
-    #             sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
-    #             for sprofile in sensors_profiles:
-    #                 add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -8)
+    for sitetype in ['depot','library','leisure']:
+        for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
+            vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' - '+chdata[0]+' Winter 2013 to Autumn 2014', group='Histograms Individual W 2013 to A 2014', chart=chart_histogram)
+            if created:
+                vis.settings = json.dumps({
+                    'width': 300,
+                    'height': 300
+                })
+                vis.save()
+                sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
+                for sprofile in sensors_profiles:
+                    add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -8)
 
 
 
@@ -584,159 +661,159 @@ def init(request):
     # # Scatter Gas Electric Colloration Chart - Core Sites 
     # # --------------------------------------------------------------------------------------------------
     
-    # sensors_profiles = Sensor_profile.objects.all().filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))   
-    # for sprofile in sensors_profiles:
-    #     vis, created = Visualisation.objects.get_or_create(name=sprofile.longname+' Correlation Winter 2013 to Autumn 2014', group='Scatter Gas Electric Correlation', chart=chart_scatter)
-    #     if created:
-    #         vis.settings = json.dumps({
+    sensors_profiles = Sensor_profile.objects.all().filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))   
+    for sprofile in sensors_profiles:
+        vis, created = Visualisation.objects.get_or_create(name=sprofile.longname+' Correlation Winter 2013 to Autumn 2014', group='Scatter Gas Electric Correlation', chart=chart_scatter)
+        if created:
+            vis.settings = json.dumps({
                 
-    #         })
-    #         vis.save()
-    #         for season in ['spring','summer','autumn','winter']:
-    #             if channel_elec in sprofile.sensor.channels.all():
-    #                 if channel_gas in sprofile.sensor.channels.all():
-    #                     add_vis_input(vis, sprofile.sensor, channel_elec, seasons[season]['start'], seasons[season]['end'], season.capitalize()+' Electricity' , 0, -1)
-    #                     add_vis_input(vis, sprofile.sensor, channel_gas,  seasons[season]['start'], seasons[season]['end'], season.capitalize()+' Gas' , 0, -1)
+            })
+            vis.save()
+            for season in ['spring','summer','autumn','winter']:
+                if channel_elec in sprofile.sensor.channels.all():
+                    if channel_gas in sprofile.sensor.channels.all():
+                        add_vis_input(vis, sprofile.sensor, channel_elec, seasons[season]['start'], seasons[season]['end'], season.capitalize()+' Electricity' , 0, -1)
+                        add_vis_input(vis, sprofile.sensor, channel_gas,  seasons[season]['start'], seasons[season]['end'], season.capitalize()+' Gas' , 0, -1)
 
 
     # # --------------------------------------------------------------------------------------------------
     # # Scatter Gas Temp Colloration Chart - Core Sites 
     # # --------------------------------------------------------------------------------------------------
     
-    # sensors_profiles = Sensor_profile.objects.all().filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))   
-    # for sprofile in sensors_profiles:
-    #     vis, created = Visualisation.objects.get_or_create(name=sprofile.longname+' Correlation Winter 2013 to Autumn 2014', group='Scatter Gas Temperature Correlation', chart=chart_scatter)
-    #     if created:
-    #         vis.settings = json.dumps({
+    sensors_profiles = Sensor_profile.objects.all().filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))   
+    for sprofile in sensors_profiles:
+        vis, created = Visualisation.objects.get_or_create(name=sprofile.longname+' Correlation Winter 2013 to Autumn 2014', group='Scatter Gas Temperature Correlation', chart=chart_scatter)
+        if created:
+            vis.settings = json.dumps({
               
-    #         })
-    #         vis.save()
-    #         for season in ['spring','summer','autumn','winter']:
-    #             if channel_temp in sprofile.sensor.channels.all():
-    #                 if channel_gas in sprofile.sensor.channels.all():
-    #                     add_vis_input(vis, sprofile.sensor, channel_temp, seasons[season]['start'], seasons[season]['end'], season.capitalize()+' Temperature' , 1, -1)
-    #                     add_vis_input(vis, sprofile.sensor, channel_gas,  seasons[season]['start'], seasons[season]['end'], season.capitalize()+' Gas' , 0, -1)
+            })
+            vis.save()
+            for season in ['spring','summer','autumn','winter']:
+                if channel_temp in sprofile.sensor.channels.all():
+                    if channel_gas in sprofile.sensor.channels.all():
+                        add_vis_input(vis, sprofile.sensor, channel_temp, seasons[season]['start'], seasons[season]['end'], season.capitalize()+' Temperature' , 1, -1)
+                        add_vis_input(vis, sprofile.sensor, channel_gas,  seasons[season]['start'], seasons[season]['end'], season.capitalize()+' Gas' , 0, -1)
 
 
 
     # # --------------------------------------------------------------------------------------------------
     # # Star Chart - Core Sites Day Patterns (3 hour intervals)
     # # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # for sitetype in ['depot','library','leisure']:
-    #     for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
+    for sitetype in ['depot','library','leisure']:
+        for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
             
-    #         # Day patterns
-    #         vis, created = Visualisation.objects.get_or_create(name='Day patterns '+sitetype.capitalize()+' '+chdata[0]+' 2014 (3hr intervals)', group='Day Patterns (3hr intervals) 2014', chart=chart_star)
-    #         if created:
-    #             vis.settings = json.dumps({
-    #                 'full_circle': True,
-    #                 'width': 300,
-    #                 'height': 300
-    #             })
-    #             vis.save()
-    #             sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
-    #             for sprofile in sensors_profiles:
-    #                 add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, 10800)
+            # Day patterns
+            vis, created = Visualisation.objects.get_or_create(name='Day patterns '+sitetype.capitalize()+' '+chdata[0]+' 2014 (3hr intervals)', group='Day Patterns (3hr intervals) 2014', chart=chart_star)
+            if created:
+                vis.settings = json.dumps({
+                    'full_circle': True,
+                    'width': 300,
+                    'height': 300
+                })
+                vis.save()
+                sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
+                for sprofile in sensors_profiles:
+                    add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, 10800)
 
 
 
     # # --------------------------------------------------------------------------------------------------
     # # Star Chart - Core Sites Day Patterns (1 hour intervals)
     # # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # for sitetype in ['depot','library','leisure']:
-    #     for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
+    for sitetype in ['depot','library','leisure']:
+        for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
             
-    #         # Day patterns
-    #         vis, created = Visualisation.objects.get_or_create(name='Day patterns '+sitetype.capitalize()+' '+chdata[0]+' 2014 (1hr intervals)', group='Day Patterns (1hr intervals) 2014', chart=chart_star)
-    #         if created:
-    #             vis.settings = json.dumps({
-    #                 'full_circle': True,
-    #                 'width': 300,
-    #                 'height': 300
-    #             })
-    #             vis.save()
-    #             sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
-    #             for sprofile in sensors_profiles:
-    #                 add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, 3600)
+            # Day patterns
+            vis, created = Visualisation.objects.get_or_create(name='Day patterns '+sitetype.capitalize()+' '+chdata[0]+' 2014 (1hr intervals)', group='Day Patterns (1hr intervals) 2014', chart=chart_star)
+            if created:
+                vis.settings = json.dumps({
+                    'full_circle': True,
+                    'width': 300,
+                    'height': 300
+                })
+                vis.save()
+                sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
+                for sprofile in sensors_profiles:
+                    add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, 3600)
 
 
 
     # # --------------------------------------------------------------------------------------------------
     # # Star Chart - Core Sites Seasonal
     # # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # for sitetype in ['depot','library','leisure']:
-    #     for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
+    for sitetype in ['depot','library','leisure']:
+        for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
             
-    #         # Seasonal patterns
-    #         vis, created = Visualisation.objects.get_or_create(name='Seasonal '+sitetype.capitalize()+' '+chdata[0]+' Winter 2013 to Autumn 2014', group='Star Seasonal Patterns', chart=chart_star)
-    #         if created:
-    #             vis.settings = json.dumps({
-    #                 'full_circle': True,
-    #                 'width': 300,
-    #                 'height': 300
-    #             })
-    #             vis.save()
-    #             sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
-    #             for sprofile in sensors_profiles:
-    #                 add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -4)
+            # Seasonal patterns
+            vis, created = Visualisation.objects.get_or_create(name='Seasonal '+sitetype.capitalize()+' '+chdata[0]+' Winter 2013 to Autumn 2014', group='Star Seasonal Patterns', chart=chart_star)
+            if created:
+                vis.settings = json.dumps({
+                    'full_circle': True,
+                    'width': 300,
+                    'height': 300
+                })
+                vis.save()
+                sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
+                for sprofile in sensors_profiles:
+                    add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -4)
 
 
 
     # # --------------------------------------------------------------------------------------------------
     # # Star Plots - Core buildings Gas - Seasonal - Weekend Vs Weekday - Central Tendancy
     # # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # for sitetype in ['depot','library','leisure']:
-    #     for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
+    for sitetype in ['depot','library','leisure']:
+        for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
             
-    #         vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' Buildings '+chdata[0]+' Winter 2013 - Autumn 2014', group='Seasonal Weekday Weekend Central Tendancy', chart=chart_star)
-    #         vis.settings = json.dumps({
-    #                 'full_circle': True,
-    #                 'width': 300,
-    #                 'height': 300
-    #         })
-    #         if created:
-    #             vis.save()
-    #             unique_postcodes = []
-    #             sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
-    #             # Build list of unique postcodes 
-    #             for sprofile in sensors_profiles:
-    #                 add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -7)
+            vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' Buildings '+chdata[0]+' Winter 2013 - Autumn 2014', group='Seasonal Weekday Weekend Central Tendancy', chart=chart_star)
+            vis.settings = json.dumps({
+                    'full_circle': True,
+                    'width': 300,
+                    'height': 300
+            })
+            if created:
+                vis.save()
+                unique_postcodes = []
+                sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
+                # Build list of unique postcodes 
+                for sprofile in sensors_profiles:
+                    add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 0, -7)
 
 
     # # --------------------------------------------------------------------------------------------------
     # # Star Plots - Core buildings Gas - Seasonal - Weekend Vs Weekday - IQR Spread
     # # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
     
-    # for sitetype in ['depot','library','leisure']:
-    #     for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
+    for sitetype in ['depot','library','leisure']:
+        for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
             
-    #         vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' Buildings '+chdata[0]+' 2014', group='Seasonal Weekday Weekend IQR Spread', chart=chart_star)
-    #         vis.settings = json.dumps({
-    #                 'full_circle': True,
-    #                 'width': 300,
-    #                 'height': 300
-    #         })
-    #         if created:
-    #             vis.save()
-    #             unique_postcodes = []
-    #             sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
-    #             # Build list of unique postcodes 
-    #             for sprofile in sensors_profiles:
-    #                 add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 7, -7)
+            vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' Buildings '+chdata[0]+' 2014', group='Seasonal Weekday Weekend IQR Spread', chart=chart_star)
+            vis.settings = json.dumps({
+                    'full_circle': True,
+                    'width': 300,
+                    'height': 300
+            })
+            if created:
+                vis.save()
+                unique_postcodes = []
+                sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
+                # Build list of unique postcodes 
+                for sprofile in sensors_profiles:
+                    add_vis_input(vis, sprofile.sensor, chdata[1], start, end, None, 7, -7)
 
 
 
@@ -744,101 +821,103 @@ def init(request):
     # # --------------------------------------------------------------------------------------------------
     # # Line - Gas Against Weather for core sites
     # # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # unique_postcodes = []
-    # sensors_profiles = Sensor_profile.objects.all().filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))
+    unique_postcodes = []
+    sensors_profiles = Sensor_profile.objects.all().filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))
    
-    # # Build list of unique postcodes 
-    # for sprofile in sensors_profiles:
-    #     if sprofile.postcode != '':
-    #         pc = sprofile.postcode.split()[0]
-    #         if pc not in unique_postcodes:
-    #             unique_postcodes.append(pc)
+    # Build list of unique postcodes 
+    for sprofile in sensors_profiles:
+        if sprofile.postcode != '':
+            pc = sprofile.postcode.split()[0]
+            if pc not in unique_postcodes:
+                unique_postcodes.append(pc)
 
-    # # For each postcode
-    # for pc in unique_postcodes:
+    # For each postcode
+    for pc in unique_postcodes:
         
-    #     # Line in Temp
-    #     vis, created = Visualisation.objects.get_or_create(name='Core Buildings in '+pc+' 2014', group='Gas VS Outdoor Temp', chart=chart_time)
-    #     if created:
-    #         vis.save()
+        # Line in Temp
+        vis, created = Visualisation.objects.get_or_create(name='Core Buildings in '+pc+' 2014', group='Gas VS Outdoor Temp', chart=chart_time)
+        if created:
+            vis.save()
             
-    #         sensors_profiles = Sensor_profile.objects.all().filter(postcode__icontains=pc+' ').filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))
-    #         first = True
-    #         for sprofile in sensors_profiles:
-    #             add_vis_input(vis, sprofile.sensor, channel_gas, start, end)
-    #             if first:
-    #                 add_vis_input(vis, sprofile.sensor, channel_temp, start, end, '[ '+pc+' Temp ]', 1)
-    #                 first = False
+            sensors_profiles = Sensor_profile.objects.all().filter(postcode__icontains=pc+' ').filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure'))
+            first = True
+            for sprofile in sensors_profiles:
+                add_vis_input(vis, sprofile.sensor, channel_gas, start, end)
+                if first:
+                    add_vis_input(vis, sprofile.sensor, channel_temp, start, end, '[ '+pc+' Temp ]', 1)
+                    first = False
    
 
-    #     # Calendar compare
-    #     vis, created = Visualisation.objects.get_or_create(name='Core Buildings in '+pc+' 2014', group='Gas Comparison In Postcode Areas', chart=chart_cal)
-    #     if created:
-    #         vis.save()
-    #         sensors_profiles = Sensor_profile.objects.all().filter(postcode__icontains=pc+' ').filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure')) 
-    #         for sprofile in sensors_profiles:
-    #             add_vis_input(vis, sprofile.sensor, channel_gas, start, end)
+        # Calendar compare
+        vis, created = Visualisation.objects.get_or_create(name='Core Buildings in '+pc+' 2014', group='Gas Comparison In Postcode Areas', chart=chart_cal)
+        if created:
+            vis.save()
+            sensors_profiles = Sensor_profile.objects.all().filter(postcode__icontains=pc+' ').filter(Q(longname__icontains='depot') | Q(longname__icontains='library') |  Q(longname__icontains='leisure')) 
+            for sprofile in sensors_profiles:
+                add_vis_input(vis, sprofile.sensor, channel_gas, start, end)
                
 
 
     # # --------------------------------------------------------------------------------------------------
     # # Line - Core buildings Electricity and Gas Over time
     # # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # for sitetype in ['depot','library','leisure']:
-    #     for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
+    for sitetype in ['depot','library','leisure']:
+        for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
             
-    #         vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' Buildings '+chdata[0]+' 2014', group='Core Comparisions', chart=chart_time)
-    #         if created:
-    #             unique_postcodes = []
-    #             sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
-    #             # Build list of unique postcodes 
-    #             for sprofile in sensors_profiles:
-    #                 add_vis_input(vis, sprofile.sensor, chdata[1], start, end)
+            vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' Buildings '+chdata[0]+' 2014', group='Core Comparisions', chart=chart_time)
+            if created:
+                unique_postcodes = []
+                sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
+                # Build list of unique postcodes 
+                for sprofile in sensors_profiles:
+                    add_vis_input(vis, sprofile.sensor, chdata[1], start, end)
 
 
     # # --------------------------------------------------------------------------------------------------
     # # Box Plots - Core buildings Electricity and Gas - Weekend Vs Weekday
     # # --------------------------------------------------------------------------------------------------
-    # start   = seasons['winter']['start']
-    # end     = seasons['autumn']['end']
+    start   = seasons['winter']['start']
+    end     = seasons['autumn']['end']
 
-    # for sitetype in ['depot','library','leisure']:
-    #     for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
+    for sitetype in ['depot','library','leisure']:
+        for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
             
-    #         vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' Buildings '+chdata[0]+' 2014', group='Weekday vs Weekend Comparisions', chart=chart_box)
-    #         if created:
-    #             unique_postcodes = []
-    #             sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
-    #             # Build list of unique postcodes 
-    #             for sprofile in sensors_profiles:
-    #                 add_vis_input(vis, sprofile.sensor, chdata[1], start, end, '', 0, -6)
+            vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' Buildings '+chdata[0]+' 2014', group='Weekday vs Weekend Comparisions', chart=chart_box)
+            if created:
+                unique_postcodes = []
+                sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
+                # Build list of unique postcodes 
+                for sprofile in sensors_profiles:
+                    add_vis_input(vis, sprofile.sensor, chdata[1], start, end, '', 0, -6)
 
 
 
     # # --------------------------------------------------------------------------------------------------
     # # Box Plots - Core buildings Electricity and Gas - Seasonal - Weekend Vs Weekday
     # # --------------------------------------------------------------------------------------------------
-    # for sitetype in ['depot','library','leisure']:
-    #     for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
+    for sitetype in ['depot','library','leisure']:
+        for chdata in [['Electricity', channel_elec], ['Gas', channel_gas]]:
             
-    #         vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' Buildings '+chdata[0]+' 2014', group='Seasonal + Weekday vs Weekend Comparisions', chart=chart_box)
-    #         if created:
-    #             unique_postcodes = []
-    #             sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
-    #             # Build list of unique postcodes 
-    #             for sprofile in sensors_profiles:
-    #                 start   = datetime.strptime('Dec 31 2013 00:00:00', '%b %d %Y %H:%M:%S')
-    #                 for season in ['Winter','Spring','Summer','Autumn']:
-    #                     end = add_months(start, 3)
-    #                     add_vis_input(vis, sprofile.sensor, chdata[1], start, end, season+' '+sprofile.longname, 0, -6)
-    #                     start = end
+            vis, created = Visualisation.objects.get_or_create(name=sitetype.capitalize()+' Buildings '+chdata[0]+' 2014', group='Seasonal + Weekday vs Weekend Comparisions', chart=chart_box)
+            if created:
+                unique_postcodes = []
+                sensors_profiles = Sensor_profile.objects.all().filter(longname__icontains=sitetype) 
+                # Build list of unique postcodes 
+                for sprofile in sensors_profiles:
+                    start   = datetime.strptime('Dec 31 2013 00:00:00', '%b %d %Y %H:%M:%S')
+                    for season in ['Winter','Spring','Summer','Autumn']:
+                        end = add_months(start, 3)
+                        add_vis_input(vis, sprofile.sensor, chdata[1], start, end, season+' '+sprofile.longname, 0, -6)
+                        start = end
 
+
+    
 
 
     # ----------------------------------------------------------------------------- 

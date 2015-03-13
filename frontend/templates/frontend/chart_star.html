@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load staticfiles %}
 
 {% block title %}
 {{ site.name }}
 {% endblock %}
 
 {% block head %}
-<script src="/media/frontend/js/d3.min.js"></script>
-<link rel="stylesheet" href="/media/frontend/css/radar-chart.css">
-<script src="/media/frontend/js/radar-chart.js"></script>
-<script src="/media/frontend/js/highchart/highcharts.js"></script>
+<script src="{% static 'frontend/js/d3.min.js' %}"></script>
+<link rel="stylesheet" href="{% static 'frontend/css/radar-chart.css' %}">
+<script src="{% static 'frontend/js/radar-chart.js' %}"></script>
+<script src="{% static 'frontend/js/highchart/highcharts.js' %}"></script>
 <style>
 .radar-chart .area {
   fill-opacity: 0.5;

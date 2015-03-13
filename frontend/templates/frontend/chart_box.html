@@ -1,14 +1,15 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load staticfiles %}
 
 {% block title %}
 {{ site.name }}
 {% endblock %}
 
 {% block head %}
-<script src="/media/frontend/js/highchart/highcharts.js"></script>
-<script src="/media/frontend/js/highchart/highcharts-more.js"></script>
-<script src="/media/frontend/js/highchart/exporting.js"></script>
+<script src="{% static 'frontend/js/highchart/highcharts.js' %}"></script>
+<script src="{% static 'frontend/js/highchart/highcharts-more.js' %}"></script>
+<script src="{% static 'frontend/js/highchart/exporting.js' %}"></script>
 {% endblock %}
 
 {% block menuextras %}

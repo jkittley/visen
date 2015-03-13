@@ -9,6 +9,8 @@ from django.db.models import Sum, Q
 
 from itertools import tee, izip
 
+from django.core.management import call_command
+
 from operator import add
 import numpy as np
 import matplotlib.pyplot as plt
@@ -44,7 +46,133 @@ def build_data(vis):
         return build_data_box(vis)
     if vis.chart.ref == 'histogram':
         return build_data_histogram(vis)
+    if vis.chart.ref == 'box1combo':
+        return build_data_box1combo(vis)
+    if vis.chart.ref == 'timechopen':
+        return build_data_timechopen(vis)
+    if vis.chart.ref == 'daybymonth':
+        return build_data_daybymonth(vis)
+    if vis.chart.ref == 'channelsvsopen':
+        return build_data_channelsvsopen(vis)
+    if vis.chart.ref == 'radar_times':
+        return build_data_radar_times(vis)
     return { 'messages': ['Failed to locate build function'], 'series':[] }
+
+
+
+def build_data_radar_times(vis):
+     # Fetch inputs
+    inputs = vis.get_all_inputs()
+    filename_list = []
+    messages = []
+
+    sensor_list = []
+    for visin in inputs:
+        sensor_list.append(visin.sensor.mac)
+
+
+    filename = 'media/vis/tier3_radar_channel_vs_opening/'+str(vis.pk)+'.png'
+    out = call_command('tier3_radar_channel_vs_opening', 
+        period_str=str( datetime.strftime(visin.period_start, '%Y-%m-%d')+','+datetime.strftime(visin.period_end, '%Y-%m-%d') ),
+        sensor_list=sensor_list,
+        filename=filename,
+        normalize = True,
+        open_or_not = True
+    )
+    filename_list.append(filename)
+    return { 'files':filename_list, 'messages':messages }
+ 
+
+
+def build_data_channelsvsopen(vis):
+     # Fetch inputs
+    inputs = vis.get_all_inputs()
+    filename_list = []
+    messages = []
+    for visin in inputs:
+        filename = 'media/vis/tier2_calendar_vs_opening/'+str(vis.pk)+'.png'
+        out = call_command('tier2_calendar_vs_opening', 
+            period_str=str( datetime.strftime(visin.period_start, '%Y-%m-%d')+','+datetime.strftime(visin.period_end, '%Y-%m-%d') ),
+            filename=filename,
+            sensor_name=visin.sensor.mac,
+        )
+        if out:
+            messages.append(out)
+        filename_list.append(filename)
+    return { 'files':filename_list, 'messages':messages }
+
+
+
+def build_data_box1combo(vis):
+     # Fetch inputs
+    inputs = vis.get_all_inputs()
+    filename_list = []
+    messages = []
+    for visin in inputs:
+        filename = 'media/vis/tier2_boxplot/'+str(vis.pk)+'.png'
+        out = call_command('tier2_boxplot', 
+            period_str=str( datetime.strftime(visin.period_start, '%Y-%m-%d')+','+datetime.strftime(visin.period_end, '%Y-%m-%d') ),
+            filename=filename,
+            sensor_name=visin.sensor.mac,
+        )
+        if out:
+            messages.append(out)
+        filename_list.append(filename)
+    return { 'files':filename_list, 'messages':messages }
+
+
+def build_data_timechopen(vis):
+     # Fetch inputs
+    inputs = vis.get_all_inputs()
+    filename_list = []
+    messages = []
+    for visin in inputs:
+        filename = 'media/vis/tier1_time_channel_vs_opening/'+str(visin.pk)+'.png'
+        out = call_command('tier1_time_channel_vs_opening', 
+            period_list=[str( datetime.strftime(visin.period_start, '%Y-%m-%d')+','+datetime.strftime(visin.period_end, '%Y-%m-%d') )],
+            filename=filename,
+            sensor_name=visin.sensor.mac,
+            channel_list=['gas','electricity']
+        )
+        if out:
+            messages.append(out)
+        filename_list.append(filename)
+    return { 'files':filename_list, 'messages':messages }
+
+def build_data_daybymonth(vis):
+     # Fetch inputs
+    inputs = vis.get_all_inputs()
+    filename_list = []
+    messages = []
+    for visin in inputs:
+        filename = 'media/vis/tier2_bar_monthly/'+str(visin.pk)+'.png'
+        proceed = True
+        if (visin.period_end - visin.period_start).days < 28:
+            messages.append('Period must be at least a month')
+            proceed = False
+
+        if proceed:
+            out = call_command('tier2_bar_monthly', 
+                period_str=str( datetime.strftime(visin.period_start, '%Y-%m-%d')+','+datetime.strftime(visin.period_end, '%Y-%m-%d') ),
+                filename=filename,
+                sensor_name=visin.sensor.mac,
+                normalize=True,
+            )
+            filename_list.append(filename)
+    return { 'files':filename_list, 'messages':messages }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

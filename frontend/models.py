@@ -24,6 +24,7 @@ class Chart(models.Model):
     min_inputs = models.IntegerField(default=1)
     max_inputs = models.IntegerField(default=1)
     default_settings = models.TextField(default='', blank=True)
+    visin_config     = models.TextField(default='', blank=True)
     def __unicode__(self):
         return 'Chart: '+str(self.name)
 
@@ -35,6 +36,8 @@ class Visualisation(models.Model):
     settings     = models.TextField(default='', blank=True)
     processing   = models.TextField(default='', blank=True)
     group        = models.CharField(max_length=255, default='', blank=True)
+    tier         = models.IntegerField(default=1)
+
     def __unicode__(self):
         return 'Visualisation: '+str(self.chart.name)+' of '+str(self.name)
     

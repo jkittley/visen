@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load staticfiles %}
 
 {% block title %}
 {{ site.name }}
 {% endblock %}
 
 {% block head %}
-<script type="text/javascript" src="/media/frontend/js/d3.min.js"></script>
-<link rel="stylesheet" href="/media/frontend/css/cal.css"/>
+<script type="text/javascript" src="{% static 'frontend/js/d3.min.js' %}"></script>
+<link rel="stylesheet" href="{% static 'frontend/css/cal.css' %}"/>
 <style>
 .cal_main { 
     margin-left:10px;

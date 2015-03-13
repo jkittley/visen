@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load staticfiles %}
+
+{% block title %}
+{{ site.name }}
+{% endblock %}
+
+{% block head %}
+{% endblock %}
+
+{% block menuextras %}
+    <li><a href="{% url edit vis.pk %}"><i class="fa fa-pencil"></i> Edit</a></li>
+    <li><a href="{% url clear_cache vis.pk %}"><i class="fa fa-refresh"></i> Refresh</a></li>
+{% endblock %}
+
+{% block content %}
+{% load staticfiles %}
+    
+    <div class="imgframe"></div> 
+
+    <script>
+    var data = {{ data|safe }};
+
+    // Add warning messages for channels with no data
+    for (var i=0; i<data.messages.length; i++) {  addMessage(data.messages[i], 0); }
+    if (data.files.length==0) bootbox.alert("No data");
+
+    for (key in data.files) {
+        $('.imgframe').append('<img src="/'+data.files[key]+'"/>');
+        console.log(data.files[key]);
+    }
+    </script>
+
+
+{% endblock %}

@@ -80,6 +80,8 @@ function get_channels(){
 
 {% block content %}
 
+
+
 <h3>Edit Input: {{ visin.name|default:"Default Name" }} for {{ vis.name }}
 <a href="http://localhost:8000/admin/frontend/visualisation/{{ vis.pk }}" class="pull-right lead">Advanced</a>
 </h3>
@@ -98,6 +100,7 @@ function get_channels(){
       </div>
     
       <div class="col-md-4">
+        {% if 'preprocess' in visin_config.hide %}{% else %}
         <div class="form-group">
           <label for="preprocess">Pre-Process</label>
           <select name="preprocess" id="preprocess" class="form-control">
@@ -105,6 +108,7 @@ function get_channels(){
               <option value="1">Rate of Change</option>
           </select>
         </div>
+        {% endif %}
       </div>
     </div>
 
@@ -119,12 +123,16 @@ function get_channels(){
           </select>
         </div>
       </div>
+
+      
       <div class="col-md-6">
+        {% if 'channel' in visin_config.hide %}{% else %}
         <div class="form-group">
           <label for="charttype">Channel</label>
           <select name="channel" id="channel" class="form-control">
           </select>
         </div>
+        {% endif %}
       </div>
     </div>
 
@@ -136,15 +144,18 @@ function get_channels(){
         </div>
       </div>
       <div class="col-md-6">
+          {% if 'end' in visin_config.hide %}{% else %}
           <div class="form-group">
             <label for="end">End date</label>
             <input type="text" class="form-control" name="end" id="end"  value="{{ visin.period_end|date:"Y-m-d H:i:s" }}">
           </div>
+           {% endif %}
       </div>
     </div>
 
     <div class="row">   
       <div class="col-md-6">
+        {% if 'interval' in visin_config.hide %}{% else %}
         <div class="form-group">
           <label for="charttype">Interval</label>
           <select name="interval" id="interval" class="form-control">
@@ -157,15 +168,19 @@ function get_channels(){
             <option value="0">Custom</option>
           </select>
         </div>
+        {% endif %}
       </div>
       <div class="col-md-3">
+        {% if 'interval' in visin_config.hide %}{% else %}
         <div class="form-group">
           <label for="charttype">Custom interval (in seconds)</label>
             <input type="text" class="form-control" name="cust_interval" id="cust_interval"  value="{% if visin.interval > 0 %}{{ visin.interval }}{% endif %}">
         </div>
+        {% endif %}
       </div>
 
       <div class="col-md-3">
+        {% if 'summode' in visin_config.hide %}{% else %}
         <div class="form-group">
           <label for="charttype">Sum Mode</label>
           <select name="summode" id="summode" class="form-control">
@@ -180,6 +195,7 @@ function get_channels(){
             <option value="8">Rate Of Change - Mean</option>
           </select>
         </div>
+        {% endif %}
       </div>
     </div>
 

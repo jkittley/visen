@@ -5,21 +5,26 @@
 
 <head>
     <title>{{site.name}}</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+
     <!-- JQuery -->
-    <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
-    <!-- Latest compiled and minified JavaScript -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
-    <!-- Latest compiled and minified CSS -->
+    <script src="{% static 'jquery/jquery-1.11.2.min.js' %}"></script>
+
+    <!-- Boot Strap -->
+    <link rel="stylesheet" href="{% static 'bootstrap/css/bootstrap.min.css' %}">
+    <script src="{% static 'bootstrap/js/bootstrap.min.js' %}"></script>
+    
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    
     <!-- Date time picker -->
-    <link rel="stylesheet" href="/media/frontend/css/bootstrap-datetimepicker.min.css"/>
-    <script type="text/javascript" src="/media/frontend/js/bootstrap-datetimepicker.min.js"></script>
+    <link rel="stylesheet" href="{% static 'datetimpicker/bootstrap-datetimepicker.min.css' %}"/>
+    <script type="text/javascript" src="{% static 'datetimpicker/bootstrap-datetimepicker.min.js' %}"></script>
+
     <!-- Bootbox -->
-    <script src="/media/frontend/js/bootbox.min.js"></script>
+    <script src="{% static 'frontend/js/bootbox.min.js' %}"></script>
     <!-- Datatables -->
-    <script src="/media/frontend/js/jquery.dataTables.min.js"></script>
-    <script src="/media/frontend/js/dataTables.bootstrap.js"></script>
+    <script src="{% static 'frontend/js/jquery.dataTables.min.js' %}"></script>
+    <script src="{% static 'frontend/js/dataTables.bootstrap.js' %}"></script>
     
     <!-- Font awsemone -->
     <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
